@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const api = axios.create({
     // Use HTTPS for production Railway domain
-    baseURL: 'https://afya-links.railway.internal/api',
+    baseURL: 'https://afya-links-production.up.railway.app/api',
 });
 
 api.interceptors.request.use((config) => {

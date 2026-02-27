@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // Use HTTPS for production Railway domain
-  static const String baseUrl = 'https://afya-links.railway.internal/api';
+  static const String baseUrl = 'https://afya-links-production.up.railway.app/api';
 
   static Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
