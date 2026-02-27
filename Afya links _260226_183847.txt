@@ -1,0 +1,267 @@
+Afya Links MVP Blueprint
+1️⃣ Hosting & Backend
+Objective: Host backend APIs, admin dashboard, and connect mobile apps using free cloud services.
+ComponentFree OptionNotes / ConfigurationBackend APIRailway Free or Render FreeNode.js (Express) or Django REST. Deploy API endpoints for clinics, pharmacies, drivers, and admin. 750–1000 compute hours/month is sufficient for MVP.Admin DashboardVercel FreeReact or Next.js frontend; connects to backend via HTTPS. Includes SSL by default.Mobile AppsFlutter (Android/iOS)Connects directly to backend. Push notifications via Firebase Cloud Messaging (free).Hosting Notes- Use HTTPS endpoints only
+- Keep environment variables secure in Railway / Render
+- Monitor free-tier usage to prevent downtime 
+2️⃣ Database
+Objective: Store users, clinics, pharmacies, orders, delivery assignments, invoices, and verification documents.
+ComponentFree OptionNotesPrimary DBSupabase Free PostgreSQL500MB DB storage + 1GB file storage. Supports relational data model, CSV import, auth. Perfect for pilot.Optional NoSQLFirebase FirestoreUseful if you want realtime order updates for clinics/pharmacies, but SQL recommended for structured orders. 
+DB Tables (summary from previous blueprint)
+• users (role, verification, contact)
+• clinics, health_workers, pharmacies, drivers
+• price_lists & price_items
+• orders & order_items
+• deliveries (SMS logs, pickup/drop timestamps)
+• invoices & transactions
+Supabase allows CSV import for pharmacy price lists, and storing docs in Supabase Storage.
+3️⃣ File Storage
+UseFree OptionNotesVerification documents (clinic/pharmacy/driver)Supabase Storage1GB free; encrypted at rest; role-based access control.CSV Price ListsSupabase StorageUpload and link to price_list table. TTL handled by backend.Screenshots / proofsSupabase StorageAttach proof of payment; admin validates weekly. 
+4️⃣ SMS / Driver Notifications
+Problem: Drivers may not have smartphones or mobile data.
+Solution for MVP: SMS-only notifications.
+ProviderFree OptionNotesAfrica’s TalkingFree trial creditsUse to send driver pickup & drop-off SMS with order_code.TwilioTrial (250 SMS)For testing / small pilot if Africa’s Talking unavailable. 
+SMS Content Example (driver):
+AfyaLinks: Pickup @ {pharmacy_name}, {pharmacy_address}. Drop-off: {clinic_phone} / {clinic_address}. OrderCode: {order_code}. 
+• SMS to pharmacy also sent: Driver {driver_name} ({driver_phone}) assigned. Attach order_code.
+• No clinic address visible to pharmacy.
+5️⃣ Delivery Fees & Commission (unchanged)
+• Delivery fees fixed per region/day (communicated during driver recruitment).
+• Clinic pays driver cash; driver keeps full fee.
+• Platform revenue: 
+• Commission on order subtotal (charged to pharmacy)
+• Commission on delivery fee (charged to pharmacy weekly)
+• Platform never handles cash.
+Example Fee Table for MVP:
+Region / DayDelivery Fee (UGX)Kampala Central5,000Kampala Outskirts7,000Isingiro (Tuesday)10,000Ibanda (Tuesday)12,000 
+6️⃣ Workflow Summary (Free-MVP Compatible)
+• Clinic creates order → system shows hidden pharmacy prices → submits order.
+• Pharmacy accepts order → platform calculates commission.
+• Platform assigns verified driver → SMS sent to driver with order_code.
+• Pharmacy attaches order_code → marks order ready.
+• Driver picks up → delivers → clinic pays driver in cash.
+• Clinic enters order_code in app → marks order delivered.
+• Platform tracks completion → generates weekly invoices for pharmacy → admin verifies payment.
+• New orders for pharmacy blocked until payment confirmed.
+7️⃣ Apps Overview
+AppPlatformNotesAdminWebReact + Vercel Free; manages orders, driver assignment, invoices, verifications.ClinicMobileFlutter; order creation, tracking, confirm delivery via order_code, upload documents.PharmacyMobile / Light WebFlutter or React Web; upload price lists, accept/reject orders, confirm order_code attached.DriverSMS-only (MVP)Receives pickup & drop SMS; no app. Future optional driver app. 
+8️⃣ Security / Compliance (MVP-safe)
+• HTTPS everywhere; JWT auth for apps.
+• Role-based access control: clinics cannot see other clinics or pharmacies’ data.
+• Docs & CSVs stored encrypted.
+• Audit logs: all admin actions, driver SMS logs, order code verification.
+• Compliant with Uganda pharmacy regulations: only verified users, no platform-held inventory, verified license numbers uploaded.
+9️⃣ Free-tier Limitations & Mitigation
+LimitMitigationSupabase 500MB DBOptimize order item storage; delete old logs after pilot.Supabase 1GB file storageLimit images & CSVs; compress verification docs.SMS creditsStart with few drivers; Africa’s Talking trial for pilot.Backend free computeSchedule cron jobs lightly; avoid heavy image processing. 
+10️⃣ Pilot Deployment Plan (Free Tier)
+• Geography: Kampala + 1 nearby district (Isingiro / Ibanda).
+• Users: 30 clinics, 15 pharmacies, 20–30 verified drivers.
+• Process: 
+• Set up Supabase DB + Storage.
+• Deploy backend API on Railway Free.
+• Deploy admin dashboard on Vercel Free.
+• Install Flutter apps on pilot users’ phones.
+• Recruit drivers, assign zones, fixed fees.
+• Use Africa’s Talking free SMS credits to notify drivers.
+• Monitor metrics: delivery success, invoice payment, order flow, commission collected.
+
+Afya Links MVP – Apps Development Specification
+Goal: Enable verified clinics/drug shops to place orders with verified pharmacies, manage deliveries through verified drivers (SMS-based initially), and ensure platform revenue via commission on orders and delivery fees. All apps integrate with a free-tier backend and database (Supabase / Railway Free).
+1️⃣ Apps & Roles
+• Admin Web App
+• Web dashboard for platform operations.
+• Functions: 
+• Approve/verifying clinics, pharmacies, health workers, drivers.
+• Assign drivers to orders.
+• Track order statuses and delivery confirmations.
+• Generate weekly invoices for pharmacies.
+• Validate uploaded payment proofs.
+• View analytics (orders, commission, delivery efficiency).
+• Clinic / Health Worker App (Mobile)
+• Android/iOS app.
+• Functions: 
+• Register and upload verification docs.
+• Create new orders (select drugs + quantity + preferred pharmacies).
+• View hidden price offers from pharmacies (per order).
+• Track order status (accepted, assigned, in transit, delivered).
+• Confirm delivery via unique order code.
+• Receive notifications (push/Firebase).
+• Pharmacy App (Mobile / Light Web)
+• Android/iOS or responsive web app.
+• Functions: 
+• Register and upload license docs.
+• Upload price lists (CSV format with TTL for validity, default 48 hours).
+• Receive orders from clinics.
+• Accept / Partial Accept / Reject orders.
+• Attach unique order code to order and mark ready for driver pickup.
+• Track completed orders.
+• Driver (SMS-based initially, optional future mobile app)
+• Receives SMS notifications of assigned orders.
+• Driver receives: 
+• Pickup location (pharmacy)
+• Drop-off location (clinic address & contact)
+• Unique order code
+• Contact numbers
+• Collects delivery fee in cash from clinic.
+• Optional future app: track deliveries, confirm pickup/drop-off.
+2️⃣ User Verification & Registration Flow
+• Clinics / Health Workers / Pharmacies / Drivers 
+• Step 1: Register with phone number (OTP verification).
+• Step 2: Upload verification documents: 
+• Clinic: business registration + facility contact info.
+• Health worker: license + national ID.
+• Pharmacy: pharmacy license + business registration + contact info.
+• Driver: national ID, vehicle registration, agreed fixed delivery fee.
+• Step 3: Admin verification via web dashboard.
+• Step 4: Only after verification can the user interact with the platform.
+Validation Rules:
+• Phone number must be unique.
+• Document format: PDF/JPG/PNG < 5MB.
+• Verified flag required for order placement/receiving.
+3️⃣ Order Flow (End-to-End)
+• Clinic App
+• New Order Screen 
+• Search for drugs (auto-complete or from previous orders).
+• Select quantity.
+• Optionally attach prescription image.
+• Choose preferred pharmacies (up to N, default 2).
+• Offer Screen 
+• Display hidden prices from selected pharmacies: 
+• Price
+• Stock status (Available / Unknown)
+• Price TTL countdown
+• Confirm pharmacy selection and submit order.
+• Pharmacy App
+• Orders Inbox 
+• View pending orders (with items and prescription images).
+• Accept / Partial Accept / Reject: 
+• Partial Accept allows indicating missing items.
+• Reject requires reason selection.
+• Attach order code to order.
+• Mark “Ready for Pickup”.
+• Driver Assignment
+• Admin system automatically assigns verified driver based on region.
+• SMS sent to driver: AfyaLinks: Pickup @ {pharmacy_name}, {pharmacy_address}. Drop-off: {clinic_phone} / {clinic_address}. OrderCode: {order_code}. 
+• SMS sent to pharmacy: Driver {driver_name} ({driver_phone}) assigned. Attach order code to parcel. 
+• Pharmacy confirms in-app that code is attached.
+• Delivery
+• Driver collects package from pharmacy.
+• Delivers to clinic.
+• Clinic confirms delivery by entering unique order_code in app.
+• Completion
+• Order status updated to Delivered in all apps.
+• Cash payment: clinic pays driver directly.
+• Platform commission and delivery fee commissions tracked in backend for invoicing.
+4️⃣ Price List & Hidden Pricing
+• Pharmacy uploads CSV with format:
+sku,drug_name,brand,strength,pack_size,unit,price,stock_qty 
+• CSV validity TTL: default 48 hours.
+• System automatically calculates clinic price offers.
+• Hidden pricing: 
+• Each pharmacy sees only its own prices.
+• Clinics see prices from pharmacies selected for that order only.
+• Prevent “price war”: each clinic can only submit order once per pharmacy per drug.
+5️⃣ Delivery Fees & Commission
+• Delivery Fee: fixed per region/day (e.g., Kampala Central: UGX 5,000).
+• Driver earnings: cash from clinic; no platform handling.
+• Platform revenue: 
+• Commission on order subtotal (charged to pharmacy).
+• Commission on delivery fee (charged to pharmacy weekly via invoice).
+• Invoice Flow: 
+• Weekly invoices generated automatically.
+• Pharmacy uploads payment proof (screenshot or bank transfer).
+• Admin verifies and marks invoice paid.
+• Block pharmacy from receiving new orders if payment not verified.
+6️⃣ Notifications & Alerts
+• Clinic App 
+• Push: Order accepted by pharmacy.
+• Push: Driver assigned + driver contact + expected delivery.
+• Push: Delivery confirmed.
+• Pharmacy App 
+• Push: New order received.
+• Push: Driver assigned to pickup.
+• Driver (SMS) 
+• SMS sent for each assigned order.
+• SMS contains only necessary pickup/drop info and order code.
+• Optional fallback for non-smartphone clinics: SMS notifications.
+7️⃣ Admin Web App Screens
+• Dashboard: 
+• Pending verifications.
+• Active orders.
+• Revenue summary.
+• Orders Management: 
+• View all orders, statuses.
+• Assign drivers manually if auto-assignment fails.
+• Users Management: 
+• Approve/decline clinics, pharmacies, drivers, health workers.
+• Invoices: 
+• View weekly invoices.
+• Approve payment proof uploads.
+• Suspend non-paying pharmacies.
+• Reports: 
+• Order volume per region.
+• Delivery success rate.
+• Commission collected.
+8️⃣ Data Validation & Rules
+• Unique order_code for each order.
+• CSV validation on upload (mandatory fields, numeric price, TTL).
+• Order TTL: pharmacy must respond within 15 minutes.
+• Driver assignment TTL: if not assigned automatically, admin manually intervenes.
+• Clinics cannot submit duplicate orders to same pharmacy for same drugs within TTL period.
+9️⃣ Backend / APIs
+• Auth: OTP login for all roles.
+• Clinic: 
+• POST /orders
+• GET /orders/{id}
+• POST /orders/{id}/confirm-delivery
+• Pharmacy: 
+• POST /price-list CSV
+• GET /orders
+• POST /orders/{id}/response
+• POST /orders/{id}/mark-ready
+• Admin: 
+• GET /orders
+• POST /orders/{id}/assign-driver
+• GET /invoices
+• POST /invoices/{id}/mark-paid
+• Driver (SMS): 
+• Admin triggers SMS via gateway; no mobile app in MVP.
+10️⃣ Free-Tier Hosting & DB
+• Backend: Railway Free / Render Free (Node.js / Django REST).
+• Database: Supabase PostgreSQL Free (500MB DB, 1GB storage).
+• File Storage: Supabase Storage (verification docs, CSVs, screenshots).
+• SMS Gateway: Africa’s Talking free trial (pilot drivers).
+• Admin Dashboard Hosting: Vercel Free.
+• Mobile Apps: Flutter; connects to backend APIs.
+11️⃣ Security & Compliance
+• HTTPS everywhere.
+• JWT authentication with role-based access control.
+• Verification docs encrypted; admin-only access.
+• Audit logs: order actions, SMS logs, payment proof uploads.
+• Only verified users can place/receive orders.
+12️⃣ Pilot Deployment Plan
+• Launch in Kampala + 1 district (e.g., Isingiro).
+• Users: 
+• 30 clinics
+• 15 pharmacies
+• 20–30 verified drivers
+• Admin monitors orders and invoices.
+• Weekly review: commission collection, delivery success rate, order completion.
+13️⃣ MVP Features Checklist
+• ✅ Clinic registration + verification
+• ✅ Pharmacy registration + verification
+• ✅ Driver registration + verification
+• ✅ Health worker registration + verification
+• ✅ Order creation & submission
+• ✅ Hidden price display from pharmacy
+• ✅ Order acceptance / partial / reject by pharmacy
+• ✅ Unique order code generation
+• ✅ Driver SMS assignment
+• ✅ Delivery confirmation via order code
+• ✅ Cash payment to driver
+• ✅ Commission & delivery fee calculation
+• ✅ Weekly invoices + payment verification
+• ✅ Admin dashboard + reports
+• ✅ Push notifications for clinics/pharmacies
+• ✅ SMS notifications for drivers
+• ✅ Free-tier hosting + database + storage integration

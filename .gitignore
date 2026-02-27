@@ -1,0 +1,73 @@
+# ─── Secrets & Environment ─────────────────────────────────────────────────
+.env
+.env.local
+.env.development
+.env.production
+*.env
+
+# ─── Node / Backend ────────────────────────────────────────────────────────
+node_modules/
+dist/
+build/
+*.js.map
+npm-debug.log*
+yarn-error.log*
+
+# ─── Flutter / Dart ────────────────────────────────────────────────────────
+# Build outputs
+clinic_app/build/
+pharmacy_app/build/
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/.pub-cache/
+**/.pub/
+**/pubspec.lock
+
+# Android local configs (machine specific)
+clinic_app/android/local.properties
+pharmacy_app/android/local.properties
+**/android/local.properties
+**/android/.gradle/
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/gradle/wrapper/gradle-wrapper.jar
+**/*.iml
+**/.gradle/
+
+# iOS
+clinic_app/ios/Pods/
+pharmacy_app/ios/Pods/
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/.last_build_id
+
+# ─── IDE & OS ──────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Logs ──────────────────────────────────────────────────────────────────
+logs/
+*.log
+
+# ─── Uploads & Generated Files ─────────────────────────────────────────────
+uploads/
+*.apk
+*.aab
+*.ipa
+
+# ─── Admin Dashboard ───────────────────────────────────────────────────────
+admin-dashboard/.next/
+admin-dashboard/node_modules/
+admin-dashboard/out/
+
+# ─── Setup scripts with potential secrets ──────────────────────────────────
+backend/setup.js
