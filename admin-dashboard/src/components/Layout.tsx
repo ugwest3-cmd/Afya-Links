@@ -1,13 +1,14 @@
 
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { ShieldCheck, Activity, FileText, LogOut, LayoutDashboard } from 'lucide-react';
+import { ShieldCheck, Activity, FileText, LogOut, LayoutDashboard, Users } from 'lucide-react';
 
 const Sidebar = () => {
     const { logout } = useAuth();
 
     const navItems = [
         { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
+        { label: 'User Directory', icon: Users, path: '/users' },
         { label: 'Verifications', icon: ShieldCheck, path: '/verifications' },
         { label: 'Active Orders', icon: Activity, path: '/orders' },
         { label: 'Transactions & Invoices', icon: FileText, path: '/invoices' },

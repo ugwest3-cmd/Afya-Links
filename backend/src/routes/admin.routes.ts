@@ -4,7 +4,9 @@ import {
     getPendingVerifications,
     approveUser,
     getInvoices,
-    verifyPayment
+    verifyPayment,
+    getAllUsers,
+    addUser
 } from '../controllers/admin.controller';
 
 const router = Router();
@@ -13,6 +15,8 @@ router.use(requireAuth);
 router.use(requireRole(['ADMIN'])); // Ensure only ADMINs can access these routes
 
 router.get('/verifications/pending', getPendingVerifications);
+router.get('/users', getAllUsers);
+router.post('/users', addUser);
 router.post('/users/:id/approve', approveUser);
 router.get('/invoices', getInvoices);
 router.post('/invoices/:id/verify', verifyPayment);
