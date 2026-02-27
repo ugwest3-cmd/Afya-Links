@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'http://localhost:5000/api', // Will match the running backend
+    // Use HTTPS for production Railway domain
+    baseURL: 'https://afya-links.railway.internal/api',
 });
 
 api.interceptors.request.use((config) => {

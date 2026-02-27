@@ -3,8 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  // Use your machine's Wi-Fi IP so Android device can reach the backend
-  static const String baseUrl = 'http://192.168.1.179:5000/api';
+  // Use HTTPS for production Railway domain
+  static const String baseUrl = 'https://afya-links.railway.internal/api';
 
   static Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
