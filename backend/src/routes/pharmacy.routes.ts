@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { requireAuth, requireRole } from '../middlewares/authMiddleware';
 import { upload } from '../middlewares/uploadMiddleware';
-import { uploadPriceList, respondToOrder, uploadPaymentProof, markOrderReady, getDashboardStatsPharmacy, getInboxOrders } from '../controllers/pharmacy.controller';
+import { uploadPriceList, respondToOrder, uploadPaymentProof, markOrderReady, getDashboardStatsPharmacy, getInboxOrders, getInvoices } from '../controllers/pharmacy.controller';
 import { supabase } from '../config/supabase';
 
 const router = Router();
@@ -76,6 +76,12 @@ router.get(
     '/orders-inbox',
     requireRole(['PHARMACY']),
     getInboxOrders
+);
+
+router.get(
+    '/invoices',
+    requireRole(['PHARMACY']),
+    getInvoices
 );
 
 

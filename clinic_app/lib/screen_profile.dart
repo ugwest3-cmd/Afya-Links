@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'api_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -50,6 +52,105 @@ class _ProfileScreenState extends State<ProfileScreen> {
       behavior: SnackBarBehavior.floating,
     ));
   }
+
+  Future<void> _uploadDoc() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'png', 'jpeg'],
+        withData: true,
+      );
+
+      if (result != null && result.files.single.bytes != null) {
+        setState(() => _isLoading = true);
+        final file = result.files.single;
+        
+        final res = await ApiService.uploadVerificationDoc(
+          file.bytes!.toList(),
+          file.name,
+          'business_reg_url',
+        );
+
+        setState(() => _isLoading = false);
+        
+        if (res.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Document uploaded successfully!'),
+            backgroundColor: Color(0xFF26C87C),
+          ));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Upload failed: ${jsonDecode(res.body)['message']}'),
+            backgroundColor: Colors.red,
+          ));
+        }
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Error selecting file: $e'),
+        backgroundColor: Colors.red,
+      ));
+    }
+  }
+
+  Future<void> _launchSupportEmail() async {
+    final Uri emailLaunchUri = Uri(
+      scheme: 'mailto',
+      path: 'bdplinksapps@gmail.com',
+      queryParameters: {
+        'subject': 'Support Request - AfyaLinks Clinic Partner'
+      }
+    );
+    if (!await launchUrl(emailLaunchUri)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not open email client.'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
+  }
+
+  Future<void> _showNotificationSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool isEnabled = prefs.getBool('notifications_enabled') ?? true;
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Notification Settings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                SwitchListTile(
+                  title: const Text('Enable push notifications'),
+                  subtitle: const Text('Receive alerts for new orders and updates.'),
+                  value: isEnabled,
+                  activeColor: const Color(0xFF0D6EFD),
+                  onChanged: (val) async {
+                    setModalState(() => isEnabled = val);
+                    await prefs.setBool('notifications_enabled', val);
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          );
+        }
+      ),
+    );
+  }
+
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -104,9 +205,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 24),
 
           // Settings
-          _SettingsTile(icon: Icons.lock_outline, label: 'Change PIN', onTap: _showComingSoon),
-          _SettingsTile(icon: Icons.notifications_outlined, label: 'Notification Preferences', onTap: _showComingSoon),
-          _SettingsTile(icon: Icons.help_outline, label: 'Help & Support', onTap: _showComingSoon),
+          _SettingsTile(icon: Icons.upload_file, label: 'Upload Verification Docs', onTap: _uploadDoc),
+          _SettingsTile(icon: Icons.notifications_outlined, label: 'Notification Preferences', onTap: _showNotificationSettings),
+          _SettingsTile(icon: Icons.help_outline, label: 'Help & Support', onTap: _launchSupportEmail),
 
           const SizedBox(height: 16),
 

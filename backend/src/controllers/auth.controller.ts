@@ -70,9 +70,6 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
-        // OTP matches, delete it
-        otpStore.delete(phone);
-
         // Check if user exists in Supabase
         let { data: user, error: fetchError } = await supabase
             .from('users')
@@ -131,6 +128,9 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
                 if (profile) business_name = profile.business_name;
             }
         }
+
+        // Authentication successful, now we can safely delete the OTP
+        otpStore.delete(phone);
 
         res.status(200).json({
             success: true,

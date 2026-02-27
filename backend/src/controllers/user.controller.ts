@@ -115,3 +115,39 @@ export const getProfileStatus = async (req: AuthRequest, res: Response): Promise
         res.status(500).json({ success: false, message: error.message });
     }
 }
+
+export const uploadVerificationDoc = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+        const role = req.user?.role;
+        const { doc_type } = req.body; // 'business_reg_url' or 'pharmacy_license_url'
+
+        const file = req.file;
+
+        if (!file) {
+            res.status(400).json({ success: false, message: 'Document file is required' });
+            return;
+        }
+
+        if (!doc_type || !['business_reg_url', 'pharmacy_license_url'].includes(doc_type)) {
+            res.status(400).json({ success: false, message: 'Invalid doc_type. Must be business_reg_url or pharmacy_license_url' });
+            return;
+        }
+
+        const folder = role === 'PHARMACY' ? `pharmacies/${userId}` : `clinics/${userId}`;
+        const fileUrl = await uploadFileToSupabase('verification-docs', file, folder);
+
+        const table = role === 'PHARMACY' ? 'pharmacy_profiles' : 'clinic_profiles';
+
+        const { error } = await supabase
+            .from(table)
+            .update({ [doc_type]: fileUrl })
+            .eq('user_id', userId);
+
+        if (error) throw error;
+
+        res.status(200).json({ success: true, message: 'Document uploaded successfully', url: fileUrl });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

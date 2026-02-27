@@ -264,3 +264,23 @@ export const getInboxOrders = async (req: AuthRequest, res: Response): Promise<v
     }
 };
 
+export const getInvoices = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const pharmacyId = req.user?.id;
+
+        const { data: invoices, error } = await supabase
+            .from('invoices')
+            .select(`
+                *,
+                order:orders(order_code)
+            `)
+            .eq('pharmacy_id', pharmacyId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        res.status(200).json({ success: true, invoices });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

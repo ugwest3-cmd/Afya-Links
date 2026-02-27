@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middlewares/authMiddleware';
 import { upload } from '../middlewares/uploadMiddleware';
-import { setupClinicProfile, setupPharmacyProfile, getProfileStatus } from '../controllers/user.controller';
+import { setupClinicProfile, setupPharmacyProfile, getProfileStatus, uploadVerificationDoc } from '../controllers/user.controller';
 
 const router = Router();
 
@@ -22,6 +22,12 @@ router.post(
     requireRole(['PHARMACY']),
     upload.fields([{ name: 'business_reg', maxCount: 1 }, { name: 'pharmacy_license', maxCount: 1 }]),
     setupPharmacyProfile
+);
+
+router.post(
+    '/upload-doc',
+    upload.single('document'),
+    uploadVerificationDoc
 );
 
 // We can add the driver and health worker profile routes here similarly.

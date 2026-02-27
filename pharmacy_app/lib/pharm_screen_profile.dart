@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'api_service.dart';
+import 'pharm_screen_invoices.dart';
 
 class PharmProfileScreen extends StatefulWidget {
   final String pharmacyName;
@@ -53,6 +56,148 @@ class _PharmProfileScreenState extends State<PharmProfileScreen> {
       behavior: SnackBarBehavior.floating,
     ));
   }
+
+  Future<void> _uploadDoc() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'png', 'jpeg'],
+        withData: true,
+      );
+
+      if (result != null && result.files.single.bytes != null) {
+        setState(() => _isLoading = true);
+        final file = result.files.single;
+        
+        final res = await ApiService.uploadVerificationDoc(
+          file.bytes!.toList(),
+          file.name,
+          'pharmacy_license_url',
+        );
+
+        setState(() => _isLoading = false);
+        
+        if (res.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Document uploaded successfully!'),
+            backgroundColor: _green,
+          ));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Upload failed: ${jsonDecode(res.body)['message']}'),
+            backgroundColor: Colors.red,
+          ));
+        }
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Error selecting file: $e'),
+        backgroundColor: Colors.red,
+      ));
+    }
+  }
+
+  Future<void> _uploadPriceList() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['csv'],
+        withData: true,
+      );
+
+      if (result != null && result.files.single.bytes != null) {
+        setState(() => _isLoading = true);
+        final file = result.files.single;
+        
+        // Pass dummy filePath or name if needed, important part is file.bytes
+        final res = await ApiService.uploadPriceList(
+          file.name,
+          file.bytes!.toList(),
+          file.name,
+        );
+
+        setState(() => _isLoading = false);
+        
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Price list uploaded! ${data['items_count']} items added.'),
+            backgroundColor: _primary,
+          ));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Upload failed: ${jsonDecode(res.body)['message']}'),
+            backgroundColor: Colors.red,
+          ));
+        }
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Error selecting file: $e'),
+        backgroundColor: Colors.red,
+      ));
+    }
+  }
+
+  Future<void> _launchSupportEmail() async {
+    final Uri emailLaunchUri = Uri(
+      scheme: 'mailto',
+      path: 'bdplinksapps@gmail.com',
+      queryParameters: {
+        'subject': 'Support Request - AfyaLinks Pharmacy Partner'
+      }
+    );
+    if (!await launchUrl(emailLaunchUri)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not open email client.'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
+  }
+
+  Future<void> _showNotificationSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool isEnabled = prefs.getBool('notifications_enabled') ?? true;
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Notification Settings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                SwitchListTile(
+                  title: const Text('Enable push notifications'),
+                  subtitle: const Text('Receive alerts for new orders and updates.'),
+                  value: isEnabled,
+                  activeColor: _primary,
+                  onChanged: (val) async {
+                    setModalState(() => isEnabled = val);
+                    await prefs.setBool('notifications_enabled', val);
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          );
+        }
+      ),
+    );
+  }
+
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -103,13 +248,17 @@ class _PharmProfileScreenState extends State<PharmProfileScreen> {
 
           // Settings
           _InfoCard(children: [
-            _SettingsRow(Icons.upload_file_rounded, 'Upload Verification Docs', _green, _showComingSoon),
+            _SettingsRow(Icons.upload_file_rounded, 'Upload Verification Docs', _green, _uploadDoc),
             const _Divider(),
-            _SettingsRow(Icons.list_alt_rounded, 'Manage Price Lists', _primary, _showComingSoon),
+            _SettingsRow(Icons.list_alt_rounded, 'Manage Price Lists', _primary, _uploadPriceList),
             const _Divider(),
-            _SettingsRow(Icons.receipt_long_rounded, 'View Invoices', Colors.blueGrey, _showComingSoon),
+            _SettingsRow(Icons.receipt_long_rounded, 'View Invoices', Colors.blueGrey, () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const PharmInvoicesScreen()));
+            }),
             const _Divider(),
-            _SettingsRow(Icons.notifications_outlined, 'Notification Settings', Colors.blueGrey, _showComingSoon),
+            _SettingsRow(Icons.notifications_outlined, 'Notification Settings', Colors.blueGrey, _showNotificationSettings),
+            const _Divider(),
+            _SettingsRow(Icons.help_outline, 'Help & Support', Colors.blue, _launchSupportEmail),
           ]),
           const SizedBox(height: 24),
 

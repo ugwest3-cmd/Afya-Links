@@ -87,10 +87,27 @@ class ApiService {
     return http.get(Uri.parse('$baseUrl/users/status'), headers: headers);
   }
 
+  /// POST /api/users/upload-doc
+  static Future<http.Response> uploadVerificationDoc(List<int> fileBytes, String fileName, String docType) async {
+    final token = await _getToken();
+    final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/users/upload-doc'));
+    if (token != null) request.headers['Authorization'] = 'Bearer $token';
+    request.fields['doc_type'] = docType;
+    request.files.add(http.MultipartFile.fromBytes('document', fileBytes, filename: fileName));
+    final streamed = await request.send();
+    return http.Response.fromStream(streamed);
+  }
+
   /// GET /api/pharmacies/stats
   static Future<http.Response> getDashboardStats() async {
     final headers = await _authHeaders();
     return http.get(Uri.parse('$baseUrl/pharmacies/stats'), headers: headers);
+  }
+
+  /// GET /api/pharmacies/invoices
+  static Future<http.Response> getInvoices() async {
+    final headers = await _authHeaders();
+    return http.get(Uri.parse('$baseUrl/pharmacies/invoices'), headers: headers);
   }
 }
 
