@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { generateToken } from '../utils/jwt';
+import { sendSMS } from '../utils/sms';
 
 // In-memory OTP store for MVP Pilot. 
 // Format: Map<phone, { otp: string, expiresAt: number }>
@@ -21,13 +22,18 @@ export const requestOtp = async (req: Request, res: Response): Promise<void> => 
 
         otpStore.set(phone, { otp, expiresAt });
 
-        // For MVP Pilot: Log it. In production, send via Africa's Talking SMS here.
-        console.log(`[OTP] Generated OTP for ${phone}: ${otp}`);
+        // Send actual SMS via Africa's Talking
+        const smsResponse = await sendSMS([phone], `Your AfyaLinks verification code is: ${otp}. Valid for 5 minutes.`);
+
+        if (!smsResponse.success) {
+            console.error('[SMS Failed]', smsResponse.error);
+        } else {
+            console.log(`[SMS Sent] OTP to ${phone}`);
+        }
 
         res.status(200).json({
             success: true,
-            message: 'OTP sent successfully (Check console for MVP)',
-            // otp // Ideally don't return OTP in response, but for dev ease we could. Removed for security.
+            message: 'OTP sent successfully',
         });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
