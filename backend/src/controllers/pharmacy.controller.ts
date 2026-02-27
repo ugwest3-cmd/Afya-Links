@@ -130,14 +130,50 @@ export const respondToOrder = async (req: AuthRequest, res: Response): Promise<v
         if (updateError) throw updateError;
 
         if (status === 'ACCEPTED' || status === 'PARTIAL') {
-            console.log(`[Driver Assignment] Order ${orderId} Accepted. Order Code: ${updateData.order_code}`);
-            assignDriverAndNotify(orderId, updateData.order_code).catch(console.error);
+            console.log(`[Order Processing] Order ${orderId} Accepted. Order Code: ${updateData.order_code}. Waiting for Pharmacy to mark ready.`);
         }
 
         res.status(200).json({
             success: true,
             message: `Order marked as ${status}`,
             order_code: updateData.order_code
+        });
+
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Mark Order Ready for driver auto-assignment
+export const markOrderReady = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const pharmacyId = String(req.user?.id);
+        const orderId = String(req.params.id);
+
+        const { data: order, error: orderError } = await supabase
+            .from('orders')
+            .select('id, status, order_code')
+            .eq('id', orderId)
+            .eq('pharmacy_id', pharmacyId)
+            .single();
+
+        if (orderError || !order) {
+            res.status(404).json({ success: false, message: 'Order not found or not assigned to you' });
+            return;
+        }
+
+        if (order.status !== 'ACCEPTED' && order.status !== 'PARTIAL') {
+            res.status(400).json({ success: false, message: `Cannot mark ready. Order is currently ${order.status}` });
+            return;
+        }
+
+        // Trigger Auto-assignment
+        console.log(`[Driver Assignment] Pharmacy marked Order ${orderId} Ready. Attempting assignment...`);
+        assignDriverAndNotify(orderId, order.order_code || '').catch(console.error);
+
+        res.status(200).json({
+            success: true,
+            message: 'Order marked ready. Driver assignment in progress.'
         });
 
     } catch (error: any) {

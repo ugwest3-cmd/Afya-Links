@@ -1,0 +1,187 @@
+1️⃣ The Big Picture — How the Entire Platform Works
+Afya Links is a controlled B2B medicine sourcing and logistics coordination system.
+It connects:
+• Verified Clinics / Drug Shops
+• Verified Pharmacies
+• Verified Drivers
+• Platform Admin
+The platform does not:
+• Hold stock
+• Handle medicine payments
+• Handle delivery cash
+It only:
+• Controls order flow
+• Controls information visibility
+• Controls driver assignment
+• Tracks delivery confirmation
+• Generates invoices to pharmacies
+Think of it as a transaction orchestrator + compliance layer.
+2️⃣ Clinic App — How It Works
+Purpose:
+Allows clinics to source medicines from verified pharmacies efficiently.
+How It Works (Step-by-Step)
+1. Registration & Verification
+• Clinic registers with phone number (OTP).
+• Uploads license + business documents.
+• Admin verifies.
+• Once verified → clinic can place orders.
+No verification = no ordering.
+2. Creating an Order
+Clinic:
+• Searches drug name.
+• Enters quantity.
+• Optionally attaches prescription.
+• Selects preferred pharmacies (e.g., 2 pharmacies).
+System:
+• Pulls pharmacy prices from latest uploaded CSV.
+• Shows clinic hidden offers (only for this order).
+Important: Clinic cannot see global pharmacy price lists. Prices are shown only within active order context.
+3. Order Selection
+Clinic sees:
+• Pharmacy A → UGX X
+• Pharmacy B → UGX Y
+• Stock availability
+Clinic selects one pharmacy. Order becomes locked to that pharmacy.
+4. Order Tracking
+Status flow inside clinic app:
+• Pending pharmacy response
+• Accepted
+• Driver assigned
+• In transit
+• Delivered
+Clinic receives push notifications at each stage.
+5. Delivery Confirmation
+Driver arrives. Clinic:
+• Verifies package
+• Pays driver cash (fixed delivery fee)
+• Enters unique order code in app
+If code matches → order marked Delivered.
+This prevents fake delivery claims.
+3️⃣ Pharmacy App — How It Works
+Purpose:
+Allows pharmacies to receive structured orders and earn revenue through controlled supply.
+1. Registration & Verification
+• Upload pharmacy license
+• Upload business registration
+• Admin verifies
+• Only verified pharmacies receive orders
+2. Price List Upload
+Pharmacy uploads CSV file:
+drug_name, strength, unit, price, stock 
+System:
+• Validates format
+• Sets 48-hour TTL
+• Makes it available for order pricing
+Pharmacy can update anytime.
+Old prices auto-expire.
+3. Receiving Orders
+When clinic submits order:
+Pharmacy sees:
+• Drug list
+• Quantities
+• Attached prescription (if any)
+Pharmacy can:
+• Accept (full)
+• Partial Accept (remove unavailable items)
+• Reject (with reason)
+4. Order Code Attachment
+Once accepted:
+System generates unique order code.
+Pharmacy:
+• Attaches code physically to package.
+• Marks “Ready for Pickup.”
+This is critical security control.
+5. After Delivery
+Pharmacy does NOT receive delivery cash. Clinic pays driver.
+Platform later generates weekly invoice to pharmacy for:
+• Order commission
+• Delivery fee commission
+Pharmacy uploads payment proof. Admin verifies.
+If unpaid → pharmacy blocked.
+4️⃣ Driver System — How It Works (SMS Model)
+This is intentionally simple.
+Drivers:
+• Do NOT need smartphones.
+• Do NOT need data.
+• Do NOT need app.
+1. Recruitment
+Driver provides:
+• ID
+• Vehicle details
+• Agrees to fixed delivery fee per region
+Driver agrees: “I accept UGX X per delivery in this region.”
+This prevents negotiation chaos.
+2. Assignment
+When pharmacy marks order ready:
+Admin/system assigns nearest verified driver.
+Driver receives SMS:
+Pickup: Pharmacy Name, Address Drop: Clinic Address Order Code: XXXX Contact numbers included 
+Pharmacy also gets SMS with driver details.
+3. Delivery
+Driver:
+• Picks up package.
+• Delivers to clinic.
+• Collects fixed delivery fee in cash.
+Platform does not touch money.
+5️⃣ Admin Web App — How It Works
+This is the control center.
+Admin can:
+• Verify users
+• View all orders
+• Assign drivers manually
+• View delivery status
+• Generate invoices
+• Approve payment proofs
+• Block non-paying pharmacies
+Admin also sees:
+• Orders per region
+• Delivery completion rate
+• Revenue reports
+• Driver performance
+Without admin dashboard, platform collapses.
+6️⃣ How All Apps Work Together (System Flow)
+Let’s connect everything:
+Step 1:
+Clinic creates order → selects pharmacy.
+Step 2:
+Pharmacy accepts → attaches order code.
+Step 3:
+System assigns driver → sends SMS.
+Step 4:
+Driver picks up → delivers.
+Step 5:
+Clinic pays driver → confirms code in app.
+Step 6:
+Order marked Delivered.
+Step 7:
+System calculates:
+• Pharmacy commission
+• Delivery commission
+Step 8:
+Weekly invoice generated.
+Step 9:
+Pharmacy uploads proof → Admin verifies.
+7️⃣ Revenue Control Logic
+Revenue comes from:
+• % commission on drug subtotal
+• % commission on delivery fee
+Pharmacy pays platform weekly.
+If pharmacy does not pay:
+System automatically blocks:
+• New order acceptance
+This creates enforcement without handling cash.
+
+9️⃣ System Architecture in Simple Terms
+Apps → Backend API → Database
+SMS Gateway → Driver
+Push Notifications → Clinics/Pharmacies
+Admin Dashboard → Full control
+Everything passes through backend.
+No peer-to-peer direct control.
+Final Summary
+Clinic App → Creates demand
+Pharmacy App → Supplies medicine
+Driver (SMS) → Handles logistics
+Admin App → Controls and enforces
+Backend → Orchestrates everything
+Afya Links is not a marketplace only. It is a controlled medical order orchestration platform with logistics coordination and commission enforcement.

@@ -18,6 +18,23 @@ export const getPendingVerifications = async (req: AuthRequest, res: Response): 
     }
 }
 
+// 1.2 Get All Orders
+export const getAllOrders = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        // Fetch all orders
+        const { data: orders, error } = await supabase
+            .from('orders')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        res.status(200).json({ success: true, orders });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+}
+
 // 1.5 Get All Users (for management)
 export const getAllUsers = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -83,6 +100,82 @@ export const addUser = async (req: AuthRequest, res: Response): Promise<void> =>
         if (error) throw error;
 
         res.status(201).json({ success: true, message: 'User created successfully', user: newUser });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+}
+
+// 2.6 Update Driver Profile
+export const updateDriverProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { id: driverId } = req.params;
+        const { region, available_hours } = req.body;
+
+        // Ensure user is actually a driver
+        const { data: driverInfo } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', driverId)
+            .single();
+
+        if (driverInfo?.role !== 'DRIVER') {
+            res.status(400).json({ success: false, message: 'User is not a driver' });
+            return;
+        }
+
+        const { error } = await supabase
+            .from('driver_profiles')
+            .upsert({
+                user_id: driverId,
+                region,
+                available_hours
+            }, { onConflict: 'user_id' });
+
+        if (error) throw error;
+
+        res.status(200).json({ success: true, message: 'Driver profile updated' });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+}
+
+// 2.7 Send Notification (Admin)
+export const sendNotificationAdmin = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { targetUserId, role, message } = req.body;
+
+        if (!message) {
+            res.status(400).json({ success: false, message: 'Message content is required' });
+            return;
+        }
+
+        // Logic to resolve recipients
+        let recipients: any[] = [];
+
+        if (targetUserId) {
+            const { data } = await supabase.from('users').select('id, phone').eq('id', targetUserId).single();
+            if (data) recipients.push(data);
+        } else if (role) {
+            const { data } = await supabase.from('users').select('id, phone').eq('role', role).eq('is_verified', true);
+            if (data) recipients = data;
+        } else {
+            const { data } = await supabase.from('users').select('id, phone').eq('is_verified', true);
+            if (data) recipients = data;
+        }
+
+        if (recipients.length === 0) {
+            res.status(404).json({ success: false, message: 'No recipients found' });
+            return;
+        }
+
+        // Send notifications (using dummy SMS wrapper for now)
+        const phones = recipients.map(r => r.phone).filter(Boolean);
+        if (phones.length > 0) {
+            const { sendSMS } = await import('../utils/sms');
+            await sendSMS(phones, message);
+        }
+
+        res.status(200).json({ success: true, message: `Notification sent to ${recipients.length} recipients` });
     } catch (e: any) {
         res.status(500).json({ success: false, message: e.message });
     }

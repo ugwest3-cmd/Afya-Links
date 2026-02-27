@@ -55,6 +55,15 @@ class ApiService {
     );
   }
 
+  /// POST /api/pharmacies/orders/:id/mark-ready
+  static Future<http.Response> markOrderReady(String orderId) async {
+    final headers = await _authHeaders();
+    return http.post(
+      Uri.parse('$baseUrl/pharmacies/orders/$orderId/mark-ready'),
+      headers: headers,
+    );
+  }
+
   /// Upload CSV price list (multipart)
   static Future<http.Response> uploadPriceList(String filePath, List<int> fileBytes, String fileName) async {
     final token = await _getToken();

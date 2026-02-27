@@ -20,8 +20,7 @@ export const sendSMS = async (to: string[], message: string) => {
 
         const result = await africastalking.SMS.send({
             to,
-            message,
-            enque: true
+            message
         });
 
         console.log('[SMS Sent]', result);

@@ -10,8 +10,7 @@ void main() async {
 
   // For UI testing bypass — set token to null to show login, or keep for direct access
   runApp(AfyaLinksPharmacyApp(
-    // bypass login for UI testing
-    initialRoute: '/home',
+    initialRoute: (token == null) ? '/login' : '/home',
   ));
 }
 

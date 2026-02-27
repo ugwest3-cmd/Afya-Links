@@ -149,7 +149,30 @@ export const confirmDelivery = async (req: AuthRequest, res: Response): Promise<
 
         if (updateError) throw updateError;
 
-        // Optional: Log delivery success in deliveries table
+        // Update deliveries table and send airtime rewards
+        try {
+            const { data: delivery } = await supabase
+                .from('deliveries')
+                .select('driver_id, driver:users(phone)')
+                .eq('order_id', orderId)
+                .single();
+
+            if (delivery && delivery.driver_id) {
+                await supabase
+                    .from('deliveries')
+                    .update({ dropoff_time: new Date() })
+                    .eq('order_id', orderId);
+
+                // Send Airtime reward (e.g. 1000 UGX for now)
+                const { sendAirtime } = await import('../utils/airtime');
+                const driverPhone = (delivery.driver as any)?.phone;
+                if (driverPhone) {
+                    await sendAirtime(driverPhone, 1000);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to process post-delivery rewards:', e);
+        }
 
         res.status(200).json({
             success: true,

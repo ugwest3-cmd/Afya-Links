@@ -12,6 +12,7 @@ class PharmOrdersScreen extends StatefulWidget {
 class _PharmOrdersScreenState extends State<PharmOrdersScreen> {
   List<dynamic> _orders = [];
   bool _loading = true;
+  bool _actionLoading = false;
   String _filter = 'All';
 
   static const _primary = Color(0xFF1B5E20);
@@ -187,6 +188,26 @@ class _PharmOrdersScreenState extends State<PharmOrdersScreen> {
     );
   }
 
+  Future<void> _markReady(BuildContext context, String orderId) async {
+    setState(() => _actionLoading = true);
+    try {
+      final res = await ApiService.markOrderReady(orderId);
+      final body = jsonDecode(res.body);
+      final ok = res.statusCode == 200;
+      
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ok ? 'Order marked ready! Driver assignment started.' : body['message'] ?? 'Error'),
+        backgroundColor: ok ? _green : _red,
+      ));
+      
+      if (ok) _loadOrders();
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Network error', style: TextStyle(color: Colors.white)), backgroundColor: _red));
+    } finally {
+      setState(() => _actionLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -323,6 +344,27 @@ class _PharmOrdersScreenState extends State<PharmOrdersScreen> {
                                           padding: const EdgeInsets.symmetric(vertical: 10),
                                         ),
                                         onPressed: () => _showRespondSheet(context, o),
+                                      ),
+                                    ),
+                                  ],
+
+                                  // Action button for ACCEPTED / PARTIAL
+                                  if ((status == 'ACCEPTED' || status == 'PARTIAL') && o['order_code'] != null) ...[
+                                    const SizedBox(height: 12),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton.icon(
+                                        icon: _actionLoading 
+                                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                            : const Icon(Icons.check_box_rounded, size: 16, color: Colors.white),
+                                        label: Text(_actionLoading ? 'Processing...' : 'Mark Ready for Pickup', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: _green,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                          elevation: 0,
+                                          padding: const EdgeInsets.symmetric(vertical: 10),
+                                        ),
+                                        onPressed: _actionLoading ? null : () => _markReady(context, o['id']),
                                       ),
                                     ),
                                   ],

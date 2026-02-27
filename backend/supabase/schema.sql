@@ -33,7 +33,9 @@ CREATE TABLE driver_profiles (
     user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     national_id_url TEXT,
     vehicle_reg_url TEXT,
-    delivery_zone VARCHAR(50),
+    region VARCHAR(100), -- Operating region
+    available_hours VARCHAR(100), -- e.g. "08:00-17:00"
+    delivery_zone VARCHAR(50), -- Specific zone within region
     agreed_fee DECIMAL(10,2)
 );
 
@@ -67,7 +69,7 @@ CREATE TABLE orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     clinic_id UUID REFERENCES users(id) ON DELETE CASCADE,
     pharmacy_id UUID REFERENCES users(id), -- assigned after clinic accepts pharmacy's hidden price offer
-    status VARCHAR(30) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'ACCEPTED', 'PARTIAL', 'REJECTED', 'READY_FOR_PICKUP', 'IN_TRANSIT', 'DELIVERED')),
+    status VARCHAR(30) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'ACCEPTED', 'PARTIAL', 'REJECTED', 'READY_FOR_PICKUP', 'ASSIGNED', 'IN_TRANSIT', 'DELIVERED')),
     subtotal DECIMAL(10,2) DEFAULT 0,
     delivery_fee DECIMAL(10,2) DEFAULT 0,
     platform_commission DECIMAL(10,2) DEFAULT 0,

@@ -6,6 +6,9 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Verifications } from './pages/Verifications';
 import { Users } from './pages/Users';
+import { Orders } from './pages/Orders';
+import { Drivers } from './pages/Drivers';
+import { Notifications } from './pages/Notifications';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -29,7 +32,9 @@ const AppRoutes = () => {
         <Route index element={<Dashboard />} />
         <Route path="users" element={<Users />} />
         <Route path="verifications" element={<Verifications />} />
-        <Route path="orders" element={<div className="p-6 text-h2 text-muted fade-in">Orders Module (Coming Soon)</div>} />
+        <Route path="orders" element={<Orders />} />
+        <Route path="drivers" element={<Drivers />} />
+        <Route path="notifications" element={<Notifications />} />
         <Route path="invoices" element={<div className="p-6 text-h2 text-muted fade-in">Invoices Module (Coming Soon)</div>} />
       </Route>
     </Routes>

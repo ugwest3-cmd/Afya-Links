@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'login.dart';
 import 'main_shell.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // final prefs = await SharedPreferences.getInstance();
-  // final token = prefs.getString('token');
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('token');
 
-  runApp(const AfyaLinksClinicApp(initialRoute: '/home'));
+  runApp(AfyaLinksClinicApp(initialRoute: (token == null) ? '/login' : '/home'));
 }
 
 class AfyaLinksClinicApp extends StatelessWidget {

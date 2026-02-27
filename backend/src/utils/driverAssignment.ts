@@ -34,26 +34,63 @@ export const assignDriverAndNotify = async (orderId: string, orderCode: string):
 
         const { data: clinicProfile } = await supabase
             .from('clinic_profiles')
-            .select('contact_phone')
+            .select('contact_phone, address')
             .eq('user_id', order.clinic_id)
             .single();
 
-        // 2. Find a verified driver (MVP: Pick random verified driver)
+        // 2. Find a verified driver
+        // Requirement: pick verified driver in the clinic's region who is currently available
+        const currentHour = new Date().getHours();
+
+        let targetRegion = 'Default';
+        if (clinicProfile?.address) {
+            // Very basic region extraction placeholder; assuming address contains region or region is passed
+            // For MVP, we'll try to match a driver who has *any* assigned region for now, 
+            // or modify the query to check if the driver's 'region' text matches part of the clinic address.
+        }
+
         const { data: drivers, error: driverError } = await supabase
             .from('users')
-            .select('id, phone, name')
+            .select(`
+                id, 
+                phone, 
+                name,
+                driver_profiles(region, available_hours)
+            `)
             .eq('role', 'DRIVER')
-            .eq('is_verified', true)
-            .limit(1);
+            .eq('is_verified', true);
 
         if (driverError || !drivers || drivers.length === 0) {
-            console.error('No verified drivers available for assignment');
+            console.error('No verified drivers available for assignment', driverError);
             return;
         }
 
-        const driver = drivers[0];
+        // Extremely basic time filtering: available_hours might be "08:00-17:00"
+        let availableDrivers = drivers.filter(d => {
+            const profiles = d.driver_profiles as any;
+            const profile = Array.isArray(profiles) ? profiles[0] : profiles;
 
-        // 3. Create delivery record
+            if (!profile || !profile.available_hours) return true; // Default to available
+
+            try {
+                const [startStr, endStr] = profile.available_hours.split('-');
+                const startHour = parseInt(startStr.split(':')[0]);
+                const endHour = parseInt(endStr.split(':')[0]);
+                return currentHour >= startHour && currentHour < endHour;
+            } catch (e) {
+                return true; // IF parsing fails, assume available
+            }
+        });
+
+        if (availableDrivers.length === 0) {
+            console.error('No drivers available at this hour');
+            return;
+        }
+
+        // Just pick the first available one for MVP
+        const driver = availableDrivers[0];
+
+        // 3. Create delivery record and update order to ASSIGNED
         const { error: deliveryError } = await supabase
             .from('deliveries')
             .insert([{
@@ -63,6 +100,11 @@ export const assignDriverAndNotify = async (orderId: string, orderCode: string):
 
         if (deliveryError && deliveryError.code !== '23505') { // ignore duplicate key if already assigned
             console.error('Failed to create delivery record', deliveryError);
+        }
+
+        const { error: updateError } = await supabase.from('orders').update({ status: 'ASSIGNED' }).eq('id', order.id);
+        if (updateError) {
+            console.error('Failed to update order status to ASSIGNED', updateError);
         }
 
         // 4. Compose and Send SMS

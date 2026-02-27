@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { requireAuth, requireRole } from '../middlewares/authMiddleware';
 import { upload } from '../middlewares/uploadMiddleware';
-import { uploadPriceList, respondToOrder, uploadPaymentProof } from '../controllers/pharmacy.controller';
+import { uploadPriceList, respondToOrder, uploadPaymentProof, markOrderReady } from '../controllers/pharmacy.controller';
 import { supabase } from '../config/supabase';
 
 const router = Router();
@@ -51,6 +51,12 @@ router.post(
     '/orders/:id/response',
     requireRole(['PHARMACY']),
     respondToOrder
+);
+
+router.post(
+    '/orders/:id/mark-ready',
+    requireRole(['PHARMACY']),
+    markOrderReady
 );
 
 router.post(
