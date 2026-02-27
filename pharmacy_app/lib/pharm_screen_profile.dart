@@ -1,22 +1,58 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'api_service.dart';
 
-class PharmProfileScreen extends StatelessWidget {
+class PharmProfileScreen extends StatefulWidget {
   final String pharmacyName;
   const PharmProfileScreen({super.key, required this.pharmacyName});
 
+  @override
+  State<PharmProfileScreen> createState() => _PharmProfileScreenState();
+}
+
+class _PharmProfileScreenState extends State<PharmProfileScreen> {
   static const _primary = Color(0xFF1B5E20);
   static const _green = Color(0xFF2E7D32);
+
+  bool _isLoading = true;
+  Map<String, dynamic>? _profileData;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProfile();
+  }
+
+  Future<void> _fetchProfile() async {
+    try {
+      final res = await ApiService.getProfileStatus();
+      if (res.statusCode == 200) {
+        setState(() {
+          _profileData = jsonDecode(res.body)['data'];
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (_) {
+      setState(() => _isLoading = false);
+    }
+  }
 
   Future<void> _signOut(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
     await prefs.remove('pharmacyName');
     if (context.mounted) Navigator.pushReplacementNamed(context, '/login');
-
   }
 
-  @override
+  void _showComingSoon() {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('Feature coming soon!'),
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -38,7 +74,7 @@ class PharmProfileScreen extends StatelessWidget {
                 child: const Icon(Icons.local_pharmacy_rounded, color: Colors.white, size: 38),
               ),
               const SizedBox(height: 12),
-              Text(pharmacyName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(widget.pharmacyName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -49,27 +85,31 @@ class PharmProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
-          // Info section
-          _InfoCard(children: [
-            _InfoRow(Icons.business_rounded, 'Business Name', pharmacyName),
-            _Divider(),
-            _InfoRow(Icons.location_on_rounded, 'Address', 'Kampala Road, Kampala'),
-            _Divider(),
-            _InfoRow(Icons.phone_rounded, 'Contact', '+256 700 000 000'),
-            _Divider(),
-            _InfoRow(Icons.badge_rounded, 'License No.', 'PHAR-2024-00123'),
-          ]),
+          if (_isLoading)
+            const Center(child: CircularProgressIndicator())
+          else ...[
+            // Info section
+            _InfoCard(children: [
+              _InfoRow(Icons.business_rounded, 'Business Name', widget.pharmacyName),
+              const _Divider(),
+              _InfoRow(Icons.location_on_rounded, 'Address', _profileData?['address'] ?? 'N/A'),
+              const _Divider(),
+              _InfoRow(Icons.phone_rounded, 'Contact', _profileData?['phone'] ?? 'N/A'),
+              const _Divider(),
+              _InfoRow(Icons.badge_rounded, 'License No.', _profileData?['license_number'] ?? 'N/A'),
+            ]),
+          ],
           const SizedBox(height: 14),
 
           // Settings
           _InfoCard(children: [
-            _SettingsRow(Icons.upload_file_rounded, 'Upload Verification Docs', _green, () {}),
-            _Divider(),
-            _SettingsRow(Icons.list_alt_rounded, 'Manage Price Lists', _primary, () {}),
-            _Divider(),
-            _SettingsRow(Icons.receipt_long_rounded, 'View Invoices', Colors.blueGrey, () {}),
-            _Divider(),
-            _SettingsRow(Icons.notifications_outlined, 'Notification Settings', Colors.blueGrey, () {}),
+            _SettingsRow(Icons.upload_file_rounded, 'Upload Verification Docs', _green, _showComingSoon),
+            const _Divider(),
+            _SettingsRow(Icons.list_alt_rounded, 'Manage Price Lists', _primary, _showComingSoon),
+            const _Divider(),
+            _SettingsRow(Icons.receipt_long_rounded, 'View Invoices', Colors.blueGrey, _showComingSoon),
+            const _Divider(),
+            _SettingsRow(Icons.notifications_outlined, 'Notification Settings', Colors.blueGrey, _showComingSoon),
           ]),
           const SizedBox(height: 24),
 

@@ -29,7 +29,7 @@ class ApiService {
     );
   }
 
-  static Future<http.Response> verifyOtp(String phone, String otp, {String? name}) {
+  static Future<http.Response> verifyOtp(String phone, String otp, {String? name, String? location, String? licenseNumber}) {
     return http.post(
       Uri.parse('$baseUrl/auth/verify-otp'),
       headers: {'Content-Type': 'application/json'},
@@ -38,6 +38,8 @@ class ApiService {
         'otp': otp,
         'role': 'CLINIC',
         if (name != null) 'name': name,
+        if (location != null) 'location': location,
+        if (licenseNumber != null) 'license_number': licenseNumber,
       }),
     );
   }
@@ -103,6 +105,8 @@ class ApiService {
       headers: headers,
       body: jsonEncode({'drug_names': drugNames, 'pharmacy_ids': pharmacyIds}),
     );
+  }
+
   /// GET /api/clinics/stats
   static Future<http.Response> getDashboardStats() async {
     final headers = await _authHeaders();

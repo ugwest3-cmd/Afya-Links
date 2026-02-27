@@ -17,6 +17,8 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _otpSent = false;
   bool _loading = false;
   bool _isSignUp = false;
+  final _locationCtrl = TextEditingController();
+  final _licenseCtrl = TextEditingController();
 
   static const _primary = Color(0xFF1B5E20);
 
@@ -25,9 +27,19 @@ class _LoginScreenState extends State<LoginScreen> {
       _showSnack('Enter a phone number', isError: true);
       return;
     }
-    if (_isSignUp && _nameCtrl.text.trim().isEmpty) {
-      _showSnack('Enter your pharmacy name', isError: true);
-      return;
+    if (_isSignUp) {
+      if (_nameCtrl.text.trim().isEmpty) {
+        _showSnack('Enter your pharmacy name', isError: true);
+        return;
+      }
+      if (_locationCtrl.text.trim().isEmpty) {
+        _showSnack('Enter your pharmacy location', isError: true);
+        return;
+      }
+      if (_licenseCtrl.text.trim().isEmpty) {
+        _showSnack('Enter your pharmacy license number', isError: true);
+        return;
+      }
     }
     setState(() => _loading = true);
     try {
@@ -55,6 +67,8 @@ class _LoginScreenState extends State<LoginScreen> {
         _phoneCtrl.text.trim(),
         _otpCtrl.text.trim(),
         name: _isSignUp ? _nameCtrl.text.trim() : null,
+        location: _isSignUp ? _locationCtrl.text.trim() : null,
+        licenseNumber: _isSignUp ? _licenseCtrl.text.trim() : null,
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
@@ -131,6 +145,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (!_otpSent) ...[
                       if (_isSignUp) ...[
                         _InputField(controller: _nameCtrl, hint: 'Pharmacy Name', icon: Icons.business, type: TextInputType.text),
+                        const SizedBox(height: 12),
+                        _InputField(controller: _locationCtrl, hint: 'Pharmacy Location (e.g. Jinja Road)', icon: Icons.location_on, type: TextInputType.text),
+                        const SizedBox(height: 12),
+                        _InputField(controller: _licenseCtrl, hint: 'License Number (e.g. PHAR-1234)', icon: Icons.badge, type: TextInputType.text),
                         const SizedBox(height: 12),
                       ],
                       _InputField(controller: _phoneCtrl, hint: '+256 700 000 000', icon: Icons.phone, type: TextInputType.phone),

@@ -17,7 +17,8 @@ CREATE TABLE clinic_profiles (
     business_name VARCHAR(150),
     address TEXT,
     business_reg_url TEXT,
-    contact_phone VARCHAR(20)
+    contact_phone VARCHAR(20),
+    license_number VARCHAR(100)
 );
 
 CREATE TABLE pharmacy_profiles (
@@ -26,7 +27,8 @@ CREATE TABLE pharmacy_profiles (
     address TEXT,
     pharmacy_license_url TEXT,
     business_reg_url TEXT,
-    contact_phone VARCHAR(20)
+    contact_phone VARCHAR(20),
+    license_number VARCHAR(100)
 );
 
 CREATE TABLE driver_profiles (

@@ -22,6 +22,9 @@ export const requestOtp = async (req: Request, res: Response): Promise<void> => 
 
         otpStore.set(phone, { otp, expiresAt });
 
+        // Console log OTP for MVP testing alongside AT sms attempt
+        console.log(`[MVP DEV] 🚀 OTP for ${phone} is: ${otp}`);
+
         // Send actual SMS via Africa's Talking
         const smsResponse = await sendSMS([phone], `Your AfyaLinks verification code is: ${otp}. Valid for 5 minutes.`);
 
@@ -42,7 +45,7 @@ export const requestOtp = async (req: Request, res: Response): Promise<void> => 
 
 export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { phone, otp, role, name } = req.body;
+        const { phone, otp, role, name, location, license_number } = req.body;
 
 
         if (!phone || !otp) {
@@ -96,15 +99,22 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
             }
             user = newUser;
 
-            // Create profile entry if name provided
-            if (name) {
-                if (role === 'CLINIC') {
-                    await supabase.from('clinic_profiles').insert([{ user_id: user.id, business_name: name }]);
-                } else if (role === 'PHARMACY') {
-                    await supabase.from('pharmacy_profiles').insert([{ user_id: user.id, business_name: name }]);
-                }
-            }
+        }
 
+        // Upsert profile entry if name is provided (for both new and existing users who missed onboarding)
+        if (name) {
+            const profileData = {
+                user_id: user.id,
+                business_name: name,
+                ...(location && { address: location }),
+                ...(license_number && { license_number })
+            };
+
+            if (user.role === 'CLINIC') {
+                await supabase.from('clinic_profiles').upsert([profileData]);
+            } else if (user.role === 'PHARMACY') {
+                await supabase.from('pharmacy_profiles').upsert([profileData]);
+            }
         }
 
         // Generate JWT

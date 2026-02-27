@@ -17,17 +17,29 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _otpSent = false;
   bool _loading = false;
   bool _isSignUp = false;
+  final _locationCtrl = TextEditingController();
+  final _hwidCtrl = TextEditingController();
 
-  static const _primary = Color(0xFF0D47A1);
+  static const _primary = Color(0xFF0D6EFD);
 
   Future<void> _sendOtp() async {
     if (_phoneCtrl.text.trim().isEmpty) {
       _showSnack('Enter a phone number', isError: true);
       return;
     }
-    if (_isSignUp && _nameCtrl.text.trim().isEmpty) {
-      _showSnack('Enter your clinic name', isError: true);
-      return;
+    if (_isSignUp) {
+      if (_nameCtrl.text.trim().isEmpty) {
+        _showSnack('Enter your clinic name', isError: true);
+        return;
+      }
+      if (_locationCtrl.text.trim().isEmpty) {
+        _showSnack('Enter your clinic location', isError: true);
+        return;
+      }
+      if (_hwidCtrl.text.trim().isEmpty) {
+        _showSnack('Enter your Health Worker ID or License', isError: true);
+        return;
+      }
     }
     setState(() => _loading = true);
     try {
@@ -56,6 +68,8 @@ class _LoginScreenState extends State<LoginScreen> {
         _phoneCtrl.text.trim(),
         _otpCtrl.text.trim(),
         name: _isSignUp ? _nameCtrl.text.trim() : null,
+        location: _isSignUp ? _locationCtrl.text.trim() : null,
+        licenseNumber: _isSignUp ? _hwidCtrl.text.trim() : null,
       );
 
       // Wait, ApiService.verifyOtp needs to support name. Let me update that too.
@@ -134,7 +148,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     if (!_otpSent) ...[
                       if (_isSignUp) ...[
-                        _InputField(controller: _nameCtrl, hint: 'Clinic Name', icon: Icons.business, type: TextInputType.text),
+                        _InputField(controller: _nameCtrl, hint: 'Clinic Name', icon: Icons.local_hospital, type: TextInputType.text),
+                        const SizedBox(height: 12),
+                        _InputField(controller: _locationCtrl, hint: 'Clinic Location (e.g. Kampala Road)', icon: Icons.location_on, type: TextInputType.text),
+                        const SizedBox(height: 12),
+                        _InputField(controller: _hwidCtrl, hint: 'Health Worker ID / License No.', icon: Icons.badge, type: TextInputType.text),
                         const SizedBox(height: 12),
                       ],
                       _InputField(controller: _phoneCtrl, hint: '+256 700 000 000', icon: Icons.phone, type: TextInputType.phone),

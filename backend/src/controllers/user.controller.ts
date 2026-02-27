@@ -82,18 +82,35 @@ export const setupPharmacyProfile = async (req: AuthRequest, res: Response): Pro
 export const getProfileStatus = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
-        const { data, error } = await supabase
+        const { data: user, error } = await supabase
             .from('users')
-            .select('is_verified, role')
+            .select('is_verified, role, phone')
             .eq('id', userId)
             .single();
 
-        if (error || !data) {
+        if (error || !user) {
             res.status(404).json({ success: false, message: 'User not found' });
             return;
         }
 
-        res.status(200).json({ success: true, is_verified: data.is_verified, role: data.role });
+        let profileData = {};
+        if (user.role === 'CLINIC') {
+            const { data } = await supabase.from('clinic_profiles').select('*').eq('user_id', userId).single();
+            if (data) profileData = data;
+        } else if (user.role === 'PHARMACY') {
+            const { data } = await supabase.from('pharmacy_profiles').select('*').eq('user_id', userId).single();
+            if (data) profileData = data;
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                ...profileData,
+                is_verified: user.is_verified,
+                role: user.role,
+                phone: user.phone
+            }
+        });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
     }
