@@ -9,6 +9,7 @@ import { Users } from './pages/Users';
 import { Orders } from './pages/Orders';
 import { Drivers } from './pages/Drivers';
 import { Notifications } from './pages/Notifications';
+import { Invoices } from './pages/Invoices';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -35,7 +36,7 @@ const AppRoutes = () => {
         <Route path="orders" element={<Orders />} />
         <Route path="drivers" element={<Drivers />} />
         <Route path="notifications" element={<Notifications />} />
-        <Route path="invoices" element={<div className="p-6 text-h2 text-muted fade-in">Invoices Module (Coming Soon)</div>} />
+        <Route path="invoices" element={<Invoices />} />
       </Route>
     </Routes>
   );
