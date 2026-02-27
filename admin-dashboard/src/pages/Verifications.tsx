@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import api from '../utils/api';
-import { CheckCircle, XCircle, Clock } from 'lucide-react';
+import { CheckCircle, Clock } from 'lucide-react';
 
 interface User {
     id: string;

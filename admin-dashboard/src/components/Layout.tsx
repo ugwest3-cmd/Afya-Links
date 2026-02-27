@@ -1,7 +1,7 @@
-import React from 'react';
+
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { ShieldCheck, Activity, Users, FileText, LogOut, LayoutDashboard } from 'lucide-react';
+import { ShieldCheck, Activity, FileText, LogOut, LayoutDashboard } from 'lucide-react';
 
 const Sidebar = () => {
     const { logout } = useAuth();
