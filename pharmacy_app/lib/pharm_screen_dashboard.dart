@@ -1,10 +1,21 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'api_service.dart';
 
-class PharmDashboardScreen extends StatelessWidget {
+class PharmDashboardScreen extends StatefulWidget {
   final String pharmacyName;
   final VoidCallback onViewOrders;
 
   const PharmDashboardScreen({super.key, required this.pharmacyName, required this.onViewOrders});
+
+  @override
+  State<PharmDashboardScreen> createState() => _PharmDashboardScreenState();
+}
+
+class _PharmDashboardScreenState extends State<PharmDashboardScreen> {
+  Map<String, int> _stats = {'new': 0, 'accepted': 0, 'ready_transit': 0, 'completed': 0};
+  List<dynamic> _recentOrders = [];
+  bool _loading = true;
 
   static const _primary = Color(0xFF1B5E20);
   static const _green = Color(0xFF2E7D32);
@@ -13,139 +24,151 @@ class PharmDashboardScreen extends StatelessWidget {
   static const _red = Color(0xFFC62828);
 
   @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    setState(() => _loading = true);
+    try {
+      final statsRes = await ApiService.getDashboardStats();
+      final ordersRes = await ApiService.getInboxOrders();
+
+      if (statsRes.statusCode == 200) {
+        _stats = Map<String, int>.from(jsonDecode(statsRes.body)['stats']);
+      }
+      if (ordersRes.statusCode == 200) {
+        _recentOrders = jsonDecode(ordersRes.body)['orders'];
+        if (_recentOrders.length > 3) _recentOrders = _recentOrders.sublist(0, 3);
+      }
+    } catch (e) {
+      debugPrint('Error fetching dashboard: $e');
+    }
+    setState(() => _loading = false);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Welcome Banner
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1B5E20), Color(0xFF388E3C)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+    if (_loading && _recentOrders.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return RefreshIndicator(
+      onRefresh: _fetchData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Welcome Banner
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF1B5E20), Color(0xFF388E3C)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [BoxShadow(color: _primary.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 6))],
               ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: _primary.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 6))],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Welcome 👋', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                      const SizedBox(height: 4),
-                      Text(pharmacyName,
-                          style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 12),
-                      GestureDetector(
-                        onTap: onViewOrders,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.inbox_rounded, color: Color(0xFF1B5E20), size: 16),
-                              SizedBox(width: 6),
-                              Text('View Orders Inbox',
-                                  style: TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.bold, fontSize: 13)),
-                            ],
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Welcome 👋', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                        const SizedBox(height: 4),
+                        Text(widget.pharmacyName,
+                            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: widget.onViewOrders,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.inbox_rounded, color: Color(0xFF1B5E20), size: 16),
+                                SizedBox(width: 6),
+                                Text('View Orders Inbox',
+                                    style: TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.bold, fontSize: 13)),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
-                  child: const Icon(Icons.local_pharmacy_rounded, color: Colors.white, size: 36),
-                ),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
+                    child: const Icon(Icons.local_pharmacy_rounded, color: Colors.white, size: 36),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Stats
+            const Text("Today's Overview", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.8,
+              children: [
+                _StatCard('New Orders', _stats['new'].toString(), Icons.notifications_active_rounded, _orange),
+                _StatCard('Accepted', _stats['accepted'].toString(), Icons.check_circle_rounded, _green),
+                _StatCard('Ready/Active', _stats['ready_transit'].toString(), Icons.local_shipping_rounded, _blue),
+                _StatCard('Completed', _stats['completed'].toString(), Icons.done_all_rounded, _primary),
               ],
             ),
-          ),
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-          // Stats
-          const Text("Today's Overview", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.8,
-            children: [
-              _StatCard('New Orders', '2', Icons.notifications_active_rounded, _orange),
-              _StatCard('Accepted', '5', Icons.check_circle_rounded, _green),
-              _StatCard('Ready/Transit', '3', Icons.local_shipping_rounded, _blue),
-              _StatCard('Completed', '12', Icons.done_all_rounded, _primary),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Quick Actions
-          const Text('Quick Actions', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          Row(children: [
-            _ActionButton(icon: Icons.inbox_rounded, label: 'Orders Inbox', color: _orange, onTap: onViewOrders),
-            const SizedBox(width: 10),
-            _ActionButton(
-              icon: Icons.upload_file_rounded,
-              label: 'Upload CSV',
-              color: _green,
-              onTap: () => Navigator.pushNamed(context, '/pricelist'),
-            ),
-            const SizedBox(width: 10),
-            _ActionButton(icon: Icons.receipt_long_rounded, label: 'Invoices', color: _blue, onTap: () {}),
-          ]),
-          const SizedBox(height: 24),
-
-          // Price list status
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
-            ),
-            child: Row(children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: _green.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.list_alt_rounded, color: _green, size: 22),
+            // Quick Actions
+            const Text('Quick Actions', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Row(children: [
+              _ActionButton(icon: Icons.inbox_rounded, label: 'Orders Inbox', color: _orange, onTap: widget.onViewOrders),
+              const SizedBox(width: 10),
+              _ActionButton(
+                icon: Icons.upload_file_rounded,
+                label: 'Upload CSV',
+                color: _green,
+                onTap: () => Navigator.pushNamed(context, '/pricelist'),
               ),
-              const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Active Price List', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                const Text('48 items · Expires in 36 hrs', style: TextStyle(color: Colors.grey, fontSize: 12)),
-              ])),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: _green.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                child: const Text('ACTIVE', style: TextStyle(color: _green, fontWeight: FontWeight.bold, fontSize: 11)),
-              ),
+              const SizedBox(width: 10),
+              _ActionButton(icon: Icons.receipt_long_rounded, label: 'Invoices', color: _blue, onTap: () {}),
             ]),
-          ),
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-          // Recent Orders
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text('Recent Orders', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-            TextButton(onPressed: onViewOrders, child: const Text('See all', style: TextStyle(color: Color(0xFF1B5E20), fontSize: 12))),
-          ]),
-          const SizedBox(height: 4),
-          _OrderTile(id: '#1045', items: 'Amoxicillin 500mg × 20', status: 'PENDING', time: '5 min ago'),
-          _OrderTile(id: '#1044', items: 'Paracetamol 1g × 50', status: 'ACCEPTED', time: '1 hr ago'),
-          _OrderTile(id: '#1043', items: 'Metformin 500mg × 30', status: 'READY_FOR_PICKUP', time: '2 hrs ago'),
-        ],
+            // Recent Orders
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              const Text('Recent Orders', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              TextButton(onPressed: widget.onViewOrders, child: const Text('See all', style: TextStyle(color: Color(0xFF1B5E20), fontSize: 12))),
+            ]),
+            const SizedBox(height: 4),
+            if (_recentOrders.isEmpty)
+              const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('No orders yet', style: TextStyle(color: Colors.grey)))),
+            ..._recentOrders.map((o) {
+              return _OrderTile(
+                id: '#${o['id'].toString().substring(0, 4)}',
+                items: (o['items'] as List?)?.map((i) => i['drug_name']).join(', ') ?? 'Medicines',
+                status: o['status'].toString(),
+                time: 'Recently',
+              );
+            }).toList(),
+          ],
+        ),
       ),
     );
   }

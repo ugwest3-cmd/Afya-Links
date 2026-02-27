@@ -13,8 +13,10 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _phoneCtrl = TextEditingController();
   final _otpCtrl = TextEditingController();
+  final _nameCtrl = TextEditingController();
   bool _otpSent = false;
   bool _loading = false;
+  bool _isSignUp = false;
 
   static const _primary = Color(0xFF0D47A1);
 
@@ -23,17 +25,21 @@ class _LoginScreenState extends State<LoginScreen> {
       _showSnack('Enter a phone number', isError: true);
       return;
     }
+    if (_isSignUp && _nameCtrl.text.trim().isEmpty) {
+      _showSnack('Enter your clinic name', isError: true);
+      return;
+    }
     setState(() => _loading = true);
     try {
       final res = await ApiService.requestOtp(_phoneCtrl.text.trim());
       if (res.statusCode == 200) {
         setState(() => _otpSent = true);
-        _showSnack('OTP sent! Check backend console for MVP.');
+        _showSnack('OTP sent!');
       } else {
         _showSnack(jsonDecode(res.body)['message'] ?? 'Failed to send OTP', isError: true);
       }
     } catch (_) {
-      _showSnack('Network error. Is the server running?', isError: true);
+      _showSnack('Network error', isError: true);
     }
     setState(() => _loading = false);
   }
@@ -45,17 +51,27 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     setState(() => _loading = true);
     try {
-      final res = await ApiService.verifyOtp(_phoneCtrl.text.trim(), _otpCtrl.text.trim());
+      // If signing up, we pass the name to verifyOtp (which handles registration)
+      final res = await ApiService.verifyOtp(
+        _phoneCtrl.text.trim(),
+        _otpCtrl.text.trim(),
+        name: _isSignUp ? _nameCtrl.text.trim() : null,
+      );
+
+      // Wait, ApiService.verifyOtp needs to support name. Let me update that too.
+      // For now, I'll update the body manually or update ApiService first.
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', data['token']);
+        await prefs.setString('clinicName', data['business_name'] ?? '');
         if (mounted) Navigator.pushReplacementNamed(context, '/home');
+
       } else {
         _showSnack(jsonDecode(res.body)['message'] ?? 'Invalid OTP', isError: true);
       }
     } catch (_) {
-      _showSnack('Network error. Is the server running?', isError: true);
+      _showSnack('Network error', isError: true);
     }
     setState(() => _loading = false);
   }
@@ -74,11 +90,11 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4FF),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             children: [
-              const Spacer(),
+              const SizedBox(height: 60),
               // Logo
               Container(
                 width: 80, height: 80,
@@ -105,17 +121,22 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_otpSent ? 'Enter OTP' : 'Sign In', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(_otpSent ? 'Enter OTP' : (_isSignUp ? 'Create Account' : 'Sign In'), 
+                         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
                     Text(
                       _otpSent
                           ? 'Enter the code sent to ${_phoneCtrl.text}'
-                          : 'Enter your registered clinic phone number',
+                          : (_isSignUp ? 'Register your clinic to start ordering' : 'Enter your registered clinic phone number'),
                       style: const TextStyle(color: Colors.grey, fontSize: 12),
                     ),
                     const SizedBox(height: 20),
 
                     if (!_otpSent) ...[
+                      if (_isSignUp) ...[
+                        _InputField(controller: _nameCtrl, hint: 'Clinic Name', icon: Icons.business, type: TextInputType.text),
+                        const SizedBox(height: 12),
+                      ],
                       _InputField(controller: _phoneCtrl, hint: '+256 700 000 000', icon: Icons.phone, type: TextInputType.phone),
                     ] else ...[
                       _InputField(controller: _otpCtrl, hint: '6-digit code', icon: Icons.lock_outline, type: TextInputType.number),
@@ -125,7 +146,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: const Text('← Change number', style: TextStyle(color: _primary, fontSize: 12)),
                       ),
                     ],
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
 
                     SizedBox(
                       width: double.infinity,
@@ -140,14 +161,25 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         child: _loading
                             ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : Text(_otpSent ? 'Verify & Login' : 'Send OTP',
+                            : Text(_otpSent ? 'Verify & Continue' : (_isSignUp ? 'Sign Up' : 'Get OTP'),
                                 style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
                       ),
                     ),
+                    
+                    if (!_otpSent) ...[
+                      const SizedBox(height: 16),
+                      Center(
+                        child: TextButton(
+                          onPressed: () => setState(() => _isSignUp = !_isSignUp),
+                          child: Text(_isSignUp ? 'Already have an account? Sign In' : 'New Clinic? Create Account',
+                               style: const TextStyle(color: _primary, fontSize: 13, fontWeight: FontWeight.w600)),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-              const Spacer(),
+              const SizedBox(height: 40),
               const Text('AfyaLinks © 2026', style: TextStyle(color: Colors.grey, fontSize: 11)),
               const SizedBox(height: 12),
             ],

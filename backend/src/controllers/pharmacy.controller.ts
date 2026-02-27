@@ -215,3 +215,52 @@ export const uploadPaymentProof = async (req: AuthRequest, res: Response): Promi
         res.status(500).json({ success: false, message: e.message });
     }
 };
+
+export const getDashboardStatsPharmacy = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const pharmacyId = req.user?.id;
+
+        const { data: orders, error } = await supabase
+            .from('orders')
+            .select('status')
+            .eq('pharmacy_id', pharmacyId);
+
+        if (error) throw error;
+
+        const stats = {
+            new: orders.filter(o => o.status === 'PENDING').length,
+            accepted: orders.filter(o => ['ACCEPTED', 'PARTIAL'].includes(o.status)).length,
+            ready_transit: orders.filter(o => ['READY_FOR_PICKUP', 'ASSIGNED', 'IN_TRANSIT'].includes(o.status)).length,
+            completed: orders.filter(o => o.status === 'DELIVERED').length,
+        };
+
+        res.status(200).json({ success: true, stats });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const getInboxOrders = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const pharmacyId = req.user?.id;
+        const { limit = 20 } = req.query;
+
+        const { data: orders, error } = await supabase
+            .from('orders')
+            .select(`
+                *,
+                clinic:users!orders_clinic_id_fkey(name),
+                items:order_items(*)
+            `)
+            .eq('pharmacy_id', pharmacyId)
+            .order('created_at', { ascending: false })
+            .limit(Number(limit));
+
+        if (error) throw error;
+
+        res.status(200).json({ success: true, orders });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+

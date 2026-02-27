@@ -11,7 +11,9 @@ class PharmProfileScreen extends StatelessWidget {
   Future<void> _signOut(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
+    await prefs.remove('pharmacyName');
     if (context.mounted) Navigator.pushReplacementNamed(context, '/login');
+
   }
 
   @override

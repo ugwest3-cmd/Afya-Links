@@ -7,14 +7,19 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('token');
+  final name = prefs.getString('clinicName') ?? 'AfyaLinks Clinic';
 
-  runApp(AfyaLinksClinicApp(initialRoute: (token == null) ? '/login' : '/home'));
+  runApp(AfyaLinksClinicApp(
+    initialRoute: (token == null) ? '/login' : '/home',
+    clinicName: name,
+  ));
 }
 
 class AfyaLinksClinicApp extends StatelessWidget {
   final String initialRoute;
+  final String clinicName;
 
-  const AfyaLinksClinicApp({super.key, required this.initialRoute});
+  const AfyaLinksClinicApp({super.key, required this.initialRoute, required this.clinicName});
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +34,7 @@ class AfyaLinksClinicApp extends StatelessWidget {
       initialRoute: initialRoute,
       routes: {
         '/login': (context) => const LoginScreen(),
-        '/home': (context) => const MainShell(clinicName: 'St. Luke\'s Clinic', clinicId: ''),
+        '/home': (context) => MainShell(clinicName: clinicName, clinicId: ''),
       },
     );
   }

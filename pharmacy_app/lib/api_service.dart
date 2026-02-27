@@ -27,10 +27,15 @@ class ApiService {
         body: jsonEncode({'phone': phone}),
       );
 
-  static Future<http.Response> verifyOtp(String phone, String otp) => http.post(
+  static Future<http.Response> verifyOtp(String phone, String otp, {String? name}) => http.post(
         Uri.parse('$baseUrl/auth/verify-otp'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'phone': phone, 'otp': otp, 'role': 'PHARMACY'}),
+        body: jsonEncode({
+          'phone': phone,
+          'otp': otp,
+          'role': 'PHARMACY',
+          if (name != null) 'name': name,
+        }),
       );
 
   // ── Pharmacy ───────────────────────────────────────────────────────────────
@@ -78,5 +83,10 @@ class ApiService {
   static Future<http.Response> getProfileStatus() async {
     final headers = await _authHeaders();
     return http.get(Uri.parse('$baseUrl/users/status'), headers: headers);
+  /// GET /api/pharmacies/stats
+  static Future<http.Response> getDashboardStats() async {
+    final headers = await _authHeaders();
+    return http.get(Uri.parse('$baseUrl/pharmacies/stats'), headers: headers);
   }
 }
+

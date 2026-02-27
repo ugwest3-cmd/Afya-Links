@@ -7,16 +7,19 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('token');
+  final name = prefs.getString('pharmacyName') ?? 'AfyaLinks Pharmacy';
 
   // For UI testing bypass — set token to null to show login, or keep for direct access
   runApp(AfyaLinksPharmacyApp(
     initialRoute: (token == null) ? '/login' : '/home',
+    pharmacyName: name,
   ));
 }
 
 class AfyaLinksPharmacyApp extends StatelessWidget {
   final String initialRoute;
-  const AfyaLinksPharmacyApp({super.key, required this.initialRoute});
+  final String pharmacyName;
+  const AfyaLinksPharmacyApp({super.key, required this.initialRoute, required this.pharmacyName});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +34,7 @@ class AfyaLinksPharmacyApp extends StatelessWidget {
       initialRoute: initialRoute,
       routes: {
         '/login': (context) => const LoginScreen(),
-        '/home': (context) => const PharmMainShell(pharmacyName: 'City Pharmacy'),
+        '/home': (context) => PharmMainShell(pharmacyName: pharmacyName),
       },
     );
   }

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middlewares/authMiddleware';
-import { getPriceOffers, createOrder, confirmDelivery } from '../controllers/clinic.controller';
+import { getPriceOffers, createOrder, confirmDelivery, getDashboardStatsClinic, getMyOrders } from '../controllers/clinic.controller';
 
 const router = Router();
 
@@ -23,5 +23,18 @@ router.post(
     requireRole(['CLINIC']),
     confirmDelivery
 );
+
+router.get(
+    '/stats',
+    requireRole(['CLINIC']),
+    getDashboardStatsClinic
+);
+
+router.get(
+    '/my-orders',
+    requireRole(['CLINIC']),
+    getMyOrders
+);
+
 
 export default router;

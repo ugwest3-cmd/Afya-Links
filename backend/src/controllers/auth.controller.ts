@@ -42,7 +42,8 @@ export const requestOtp = async (req: Request, res: Response): Promise<void> => 
 
 export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { phone, otp, role } = req.body;
+        const { phone, otp, role, name } = req.body;
+
 
         if (!phone || !otp) {
             res.status(400).json({ success: false, message: 'Phone and OTP are required' });
@@ -94,17 +95,41 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
                 return;
             }
             user = newUser;
+
+            // Create profile entry if name provided
+            if (name) {
+                if (role === 'CLINIC') {
+                    await supabase.from('clinic_profiles').insert([{ user_id: user.id, business_name: name }]);
+                } else if (role === 'PHARMACY') {
+                    await supabase.from('pharmacy_profiles').insert([{ user_id: user.id, business_name: name }]);
+                }
+            }
+
         }
 
         // Generate JWT
         const token = generateToken({ id: user.id, role: user.role });
 
+        // Fetch business name if it exists
+        let business_name = name || '';
+        if (!business_name) {
+            if (user.role === 'CLINIC') {
+                const { data: profile } = await supabase.from('clinic_profiles').select('business_name').eq('user_id', user.id).single();
+                if (profile) business_name = profile.business_name;
+            } else if (user.role === 'PHARMACY') {
+                const { data: profile } = await supabase.from('pharmacy_profiles').select('business_name').eq('user_id', user.id).single();
+                if (profile) business_name = profile.business_name;
+            }
+        }
+
         res.status(200).json({
             success: true,
             message: 'Authentication successful',
             token,
-            user
+            user,
+            business_name
         });
+
 
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });

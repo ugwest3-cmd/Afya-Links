@@ -8,7 +8,9 @@ class ProfileScreen extends StatelessWidget {
   Future<void> _logout(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
+    await prefs.remove('clinicName');
     if (context.mounted) Navigator.pushReplacementNamed(context, '/login');
+
   }
 
   @override

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { requireAuth, requireRole } from '../middlewares/authMiddleware';
 import { upload } from '../middlewares/uploadMiddleware';
-import { uploadPriceList, respondToOrder, uploadPaymentProof, markOrderReady } from '../controllers/pharmacy.controller';
+import { uploadPriceList, respondToOrder, uploadPaymentProof, markOrderReady, getDashboardStatsPharmacy, getInboxOrders } from '../controllers/pharmacy.controller';
 import { supabase } from '../config/supabase';
 
 const router = Router();
@@ -65,5 +65,18 @@ router.post(
     upload.single('proof'),
     uploadPaymentProof
 );
+
+router.get(
+    '/stats',
+    requireRole(['PHARMACY']),
+    getDashboardStatsPharmacy
+);
+
+router.get(
+    '/orders-inbox',
+    requireRole(['PHARMACY']),
+    getInboxOrders
+);
+
 
 export default router;

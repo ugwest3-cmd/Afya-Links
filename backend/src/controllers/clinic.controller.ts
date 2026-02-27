@@ -183,3 +183,52 @@ export const confirmDelivery = async (req: AuthRequest, res: Response): Promise<
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+export const getDashboardStatsClinic = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const clinicId = req.user?.id;
+
+        const { data: orders, error } = await supabase
+            .from('orders')
+            .select('status')
+            .eq('clinic_id', clinicId);
+
+        if (error) throw error;
+
+        const stats = {
+            pending: orders.filter(o => o.status === 'PENDING').length,
+            in_transit: orders.filter(o => ['ACCEPTED', 'PARTIAL', 'READY_FOR_PICKUP', 'ASSIGNED', 'IN_TRANSIT'].includes(o.status)).length,
+            delivered: orders.filter(o => o.status === 'DELIVERED').length,
+            rejected: orders.filter(o => o.status === 'REJECTED').length,
+        };
+
+        res.status(200).json({ success: true, stats });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const getMyOrders = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const clinicId = req.user?.id;
+        const { limit = 20 } = req.query;
+
+        const { data: orders, error } = await supabase
+            .from('orders')
+            .select(`
+                *,
+                pharmacy:users!orders_pharmacy_id_fkey(name),
+                items:order_items(*)
+            `)
+            .eq('clinic_id', clinicId)
+            .order('created_at', { ascending: false })
+            .limit(Number(limit));
+
+        if (error) throw error;
+
+        res.status(200).json({ success: true, orders });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
