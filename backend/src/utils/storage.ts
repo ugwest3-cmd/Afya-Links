@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabase';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 
 /**
  * Uploads a file to Supabase Storage and returns the public URL.
@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
  */
 export const uploadFileToSupabase = async (bucketName: string, file: Express.Multer.File, folder: string = ''): Promise<string> => {
     const fileExt = file.originalname.split('.').pop();
-    const fileName = `${folder ? folder + '/' : ''}${uuidv4()}.${fileExt}`;
+    const fileName = `${folder ? folder + '/' : ''}${randomUUID()}.${fileExt}`;
 
     const { data, error } = await supabase.storage
         .from(bucketName)
