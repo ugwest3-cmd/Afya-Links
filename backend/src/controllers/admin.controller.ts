@@ -7,12 +7,45 @@ export const getPendingVerifications = async (req: AuthRequest, res: Response): 
     try {
         const { data: users, error } = await supabase
             .from('users')
-            .select('id, name, email, phone, role, is_verified, created_at')
+            .select(`
+                id, name, email, phone, role, is_verified, created_at,
+                pharmacy:pharmacy_profiles(registration_doc_url),
+                clinic:clinic_profiles(business_reg_url)
+            `)
             .eq('is_verified', false);
 
         if (error) throw error;
 
-        res.status(200).json({ success: true, pending_users: users });
+        // Process data to extract the correct URL into a flat `document_url` field
+        const processedUsers = users.map((u: any) => {
+            let docPath = null;
+            if (u.role === 'PHARMACY' && u.pharmacy?.registration_doc_url) {
+                docPath = u.pharmacy.registration_doc_url;
+            } else if (u.role === 'CLINIC' && u.clinic?.business_reg_url) {
+                docPath = u.clinic.business_reg_url;
+            }
+
+            let document_url = null;
+            if (docPath) {
+                const { data: urlData } = supabase.storage
+                    .from('verification-docs')
+                    .getPublicUrl(docPath);
+                document_url = urlData.publicUrl;
+            }
+
+            return {
+                id: u.id,
+                name: u.name,
+                email: u.email,
+                phone: u.phone,
+                role: u.role,
+                is_verified: u.is_verified,
+                created_at: u.created_at,
+                document_url
+            };
+        });
+
+        res.status(200).json({ success: true, pending_users: processedUsers });
     } catch (e: any) {
         res.status(500).json({ success: false, message: e.message });
     }
@@ -105,6 +138,24 @@ export const addUser = async (req: AuthRequest, res: Response): Promise<void> =>
     }
 }
 
+// 2.5.1 Delete User (Admin override)
+export const deleteUser = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { id: targetUserId } = req.params;
+
+        const { error } = await supabase
+            .from('users')
+            .delete()
+            .eq('id', targetUserId);
+
+        if (error) throw error;
+
+        res.status(200).json({ success: true, message: 'User deleted successfully' });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+}
+
 // 2.6 Update Driver Profile
 export const updateDriverProfile = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -168,14 +219,26 @@ export const sendNotificationAdmin = async (req: AuthRequest, res: Response): Pr
             return;
         }
 
-        // Send notifications (using dummy SMS wrapper for now)
-        const phones = recipients.map(r => r.phone).filter(Boolean);
-        if (phones.length > 0) {
-            const { sendSMS } = await import('../utils/sms');
-            await sendSMS(phones, message);
+        // Insert notifications into the database
+        const notifications = recipients.map(r => ({
+            user_id: r.id,
+            title: 'Admin Alert',
+            message: message,
+            is_read: false
+        }));
+
+        if (notifications.length > 0) {
+            const { error: insertError } = await supabase
+                .from('notifications')
+                .insert(notifications);
+
+            if (insertError) {
+                console.error('[Notification Insert Error]', insertError);
+                throw insertError;
+            }
         }
 
-        res.status(200).json({ success: true, message: `Notification sent to ${recipients.length} recipients` });
+        res.status(200).json({ success: true, message: `Notification broadcasted to ${recipients.length} users` });
     } catch (e: any) {
         res.status(500).json({ success: false, message: e.message });
     }

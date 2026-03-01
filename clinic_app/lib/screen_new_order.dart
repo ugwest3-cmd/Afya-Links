@@ -29,6 +29,21 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
   void initState() {
     super.initState();
     _loadPharmacies();
+    _fetchProfile();
+  }
+
+  Future<void> _fetchProfile() async {
+    try {
+      final res = await ApiService.getProfileStatus();
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body)['data'];
+        if (data != null && data['address'] != null) {
+          setState(() {
+            _deliveryAddress = data['address'];
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadPharmacies() async {
@@ -209,16 +224,24 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: const Color(0xFFF0F4FF),
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
             ),
             child: TextField(
-              onChanged: (v) => setState(() => _deliveryAddress = v),
+              controller: TextEditingController(text: _deliveryAddress),
+              readOnly: true,
               decoration: InputDecoration(
-                hintText: 'Clinic address / notes for driver...',
-                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                hintText: 'Loading address...',
+                hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                 prefixIcon: const Icon(Icons.location_on_rounded, color: _primary, size: 20),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.edit, size: 18, color: _primary),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please go to your Profile to update your default delivery address.')),
+                    );
+                  },
+                ),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
               ),

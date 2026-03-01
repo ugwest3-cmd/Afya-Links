@@ -151,3 +151,29 @@ export const uploadVerificationDoc = async (req: AuthRequest, res: Response): Pr
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+export const updateAddress = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+        const role = req.user?.role;
+        const { address } = req.body;
+
+        if (!address) {
+            res.status(400).json({ success: false, message: 'Address is required' });
+            return;
+        }
+
+        const table = role === 'PHARMACY' ? 'pharmacy_profiles' : 'clinic_profiles';
+
+        const { error } = await supabase
+            .from(table)
+            .update({ address })
+            .eq('user_id', userId);
+
+        if (error) throw error;
+
+        res.status(200).json({ success: true, message: 'Address updated successfully' });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

@@ -9,7 +9,8 @@ import {
     addUser,
     getAllOrders,
     updateDriverProfile,
-    sendNotificationAdmin
+    sendNotificationAdmin,
+    deleteUser
 } from '../controllers/admin.controller';
 
 const router = Router();
@@ -21,6 +22,7 @@ router.get('/orders', getAllOrders);
 router.get('/verifications/pending', getPendingVerifications);
 router.get('/users', getAllUsers);
 router.post('/users', addUser);
+router.delete('/users/:id', deleteUser);
 router.post('/users/:id/approve', approveUser);
 router.post('/drivers/:id/profile', updateDriverProfile);
 router.post('/notifications/send', sendNotificationAdmin);

@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
 import 'api_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -151,6 +152,79 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _showUpdateLocationDialog() async {
+    final TextEditingController locCtrl = TextEditingController(text: _profileData?['address'] ?? '');
+    bool isSaving = false;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (context, setDialogState) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Update Location', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: locCtrl,
+                decoration: InputDecoration(
+                  hintText: 'e.g. Kampala Road, Plaza XYZ',
+                  filled: true,
+                  fillColor: const Color(0xFFF0F4FF),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                  prefixIcon: const Icon(Icons.location_on, color: Color(0xFF0D6EFD)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Simplified for now, GPS integration will be added on registration first
+              if (isSaving) const CircularProgressIndicator(),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      if (locCtrl.text.trim().isEmpty) return;
+                      setDialogState(() => isSaving = true);
+                      
+                      try {
+                        final token = await SharedPreferences.getInstance().then((p) => p.getString('token'));
+                        final res = await http.put(
+                          Uri.parse('${ApiService.baseUrl}/users/profile/address'),
+                          headers: {
+                            'Content-Type': 'application/json',
+                            if (token != null) 'Authorization': 'Bearer $token',
+                          },
+                          body: jsonEncode({'address': locCtrl.text.trim()}),
+                        );
+
+                        if (res.statusCode == 200) {
+                          if (mounted) Navigator.pop(ctx);
+                          _fetchProfile(); // refresh data
+                          ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Location updated successfully')));
+                        } else {
+                          ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Failed: ${jsonDecode(res.body)['message']}')));
+                        }
+                      } catch (e) {
+                         ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Network error')));
+                      } finally {
+                        setDialogState(() => isSaving = false);
+                      }
+                    },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D6EFD), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+              child: const Text('Save', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -206,6 +280,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           // Settings
           _SettingsTile(icon: Icons.upload_file, label: 'Upload Verification Docs', onTap: _uploadDoc),
+          _SettingsTile(icon: Icons.edit_location_alt_outlined, label: 'Update Clinic Location', onTap: _showUpdateLocationDialog),
           _SettingsTile(icon: Icons.notifications_outlined, label: 'Notification Preferences', onTap: _showNotificationSettings),
           _SettingsTile(icon: Icons.help_outline, label: 'Help & Support', onTap: _launchSupportEmail),
 

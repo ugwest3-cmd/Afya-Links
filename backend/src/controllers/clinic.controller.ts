@@ -65,7 +65,7 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
         }
 
         const subtotal = items.reduce((sum, item) => sum + (item.price_agreed * item.quantity), 0);
-        const platform_commission = subtotal * 0.05;
+        const platform_commission = subtotal * 0.06;
         const delivery_fee = 5000;
         const delivery_commission = delivery_fee * 0.1;
 

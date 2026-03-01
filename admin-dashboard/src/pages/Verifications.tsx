@@ -8,6 +8,7 @@ interface User {
     phone: string;
     role: string;
     created_at: string;
+    document_url?: string;
 }
 
 export const Verifications = () => {
@@ -66,6 +67,7 @@ export const Verifications = () => {
                                 <th>Registration Date</th>
                                 <th>Phone Number</th>
                                 <th>Role Identity</th>
+                                <th>Document</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -77,6 +79,21 @@ export const Verifications = () => {
                                     <td style={{ fontWeight: 500 }}>{user.phone}</td>
                                     <td>
                                         <span className="badge badge-info">{user.role}</span>
+                                    </td>
+                                    <td>
+                                        {user.document_url ? (
+                                            <a
+                                                href={user.document_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="btn-secondary"
+                                                style={{ fontSize: '0.8rem', padding: '4px 8px', textDecoration: 'none' }}
+                                            >
+                                                View Document
+                                            </a>
+                                        ) : (
+                                            <span className="text-muted" style={{ fontSize: '0.85rem' }}>No document</span>
+                                        )}
                                     </td>
                                     <td>
                                         <span className="badge badge-warning" style={{ display: 'flex', gap: '4px' }}>

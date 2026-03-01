@@ -62,6 +62,22 @@ export const Users = () => {
         }
     };
 
+    const handleDeleteUser = async (userId: string, userName: string | null) => {
+        if (!window.confirm(`Are you sure you want to permanently delete user ${userName || userId}? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            const res = await api.delete(`/admin/users/${userId}`);
+            if (res.data.success) {
+                setUsers(users.filter(u => u.id !== userId));
+            }
+        } catch (e: any) {
+            console.error(e);
+            alert(e.response?.data?.message || 'Failed to delete user');
+        }
+    };
+
     const filteredUsers = users.filter(u =>
         (u.name?.toLowerCase().includes(search.toLowerCase()) || '') ||
         u.phone.includes(search) ||
@@ -108,12 +124,13 @@ export const Users = () => {
                                     <th>Phone</th>
                                     <th>Role</th>
                                     <th>Status</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {filteredUsers.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} style={{ textAlign: 'center', padding: '2rem' }}>No users found.</td>
+                                        <td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>No users found.</td>
                                     </tr>
                                 ) : filteredUsers.map(user => (
                                     <tr key={user.id}>
@@ -139,6 +156,15 @@ export const Users = () => {
                                                     <UserX size={16} /> Pending
                                                 </span>
                                             )}
+                                        </td>
+                                        <td>
+                                            <button
+                                                onClick={() => handleDeleteUser(user.id, user.name)}
+                                                className="btn-danger-outline"
+                                                style={{ padding: '4px 12px', fontSize: '0.875rem' }}
+                                            >
+                                                Delete
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/jwt';
+import { supabase } from '../config/supabase';
 
 export interface AuthRequest extends Request {
     user?: {
@@ -35,4 +36,33 @@ export const requireRole = (roles: string[]) => {
         }
         next();
     };
+};
+
+export const requireVerified = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        if (!req.user || !req.user.id) {
+            res.status(401).json({ success: false, message: 'Unauthorized: User not found in request' });
+            return;
+        }
+
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('is_verified')
+            .eq('id', req.user.id)
+            .single();
+
+        if (error || !user) {
+            res.status(500).json({ success: false, message: 'Database error verifying user status' });
+            return;
+        }
+
+        if (!user.is_verified) {
+            res.status(403).json({ success: false, message: 'Forbidden: User account is not verified. Please wait for admin approval.' });
+            return;
+        }
+
+        next();
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 };

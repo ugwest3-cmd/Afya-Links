@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { requireAuth, requireRole } from '../middlewares/authMiddleware';
+import { requireAuth, requireRole, requireVerified } from '../middlewares/authMiddleware';
 import { upload } from '../middlewares/uploadMiddleware';
 import { uploadPriceList, respondToOrder, uploadPaymentProof, markOrderReady, getDashboardStatsPharmacy, getInboxOrders, getInvoices } from '../controllers/pharmacy.controller';
 import { supabase } from '../config/supabase';
@@ -18,19 +18,20 @@ router.get('/', requireRole(['CLINIC', 'ADMIN']), async (req: Request, res: Resp
             .eq('is_verified', true);
         if (error) throw error;
 
-        // Fetch pharmacy profiles for address info
+        // Fetch pharmacy profiles for address info and ensure they are wholesale
         const ids = (data || []).map((u: any) => u.id);
         let profiles: any[] = [];
         if (ids.length > 0) {
             const { data: profileData } = await supabase
                 .from('pharmacy_profiles')
                 .select('user_id, business_name, address, contact_phone')
+                .eq('is_wholesale', true)
                 .in('user_id', ids);
             profiles = profileData || [];
         }
 
-        const pharmacies = (data || []).map((u: any) => {
-            const profile = profiles.find((p: any) => p.user_id === u.id) || {};
+        const pharmacies = profiles.map((profile: any) => {
+            const u: any = (data || []).find((user: any) => user.id === profile.user_id) || {};
             return { id: u.id, name: profile.business_name || u.name || 'Pharmacy', address: profile.address || '', phone: profile.contact_phone || u.phone };
         });
 
@@ -43,6 +44,7 @@ router.get('/', requireRole(['CLINIC', 'ADMIN']), async (req: Request, res: Resp
 router.post(
     '/price-list',
     requireRole(['PHARMACY']),
+    requireVerified,
     upload.single('file'),
     uploadPriceList
 );
@@ -50,12 +52,14 @@ router.post(
 router.post(
     '/orders/:id/response',
     requireRole(['PHARMACY']),
+    requireVerified,
     respondToOrder
 );
 
 router.post(
     '/orders/:id/mark-ready',
     requireRole(['PHARMACY']),
+    requireVerified,
     markOrderReady
 );
 

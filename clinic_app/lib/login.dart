@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'api_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -76,6 +78,15 @@ class _LoginScreenState extends State<LoginScreen> {
       // For now, I'll update the body manually or update ApiService first.
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
+        
+        // Prevent PHARMACY or DRIVER from logging into CLINIC app
+        final role = data['user']['role'];
+        if (role == 'PHARMACY' || role == 'DRIVER') {
+          _showSnack('This number is registered as a $role. Please use a different number for your Clinic.', isError: true);
+          setState(() => _loading = false);
+          return;
+        }
+
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', data['token']);
         await prefs.setString('clinicName', data['business_name'] ?? '');
@@ -150,7 +161,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       if (_isSignUp) ...[
                         _InputField(controller: _nameCtrl, hint: 'Clinic Name', icon: Icons.local_hospital, type: TextInputType.text),
                         const SizedBox(height: 12),
-                        _InputField(controller: _locationCtrl, hint: 'Clinic Location (e.g. Kampala Road)', icon: Icons.location_on, type: TextInputType.text),
+                        const Text('Clinic Location', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54)),
+                        const SizedBox(height: 4),
+                        _LocationInputField(controller: _locationCtrl),
                         const SizedBox(height: 12),
                         _InputField(controller: _hwidCtrl, hint: 'Health Worker ID / License No.', icon: Icons.badge, type: TextInputType.text),
                         const SizedBox(height: 12),
@@ -233,6 +246,124 @@ class _InputField extends StatelessWidget {
           contentPadding: const EdgeInsets.symmetric(vertical: 14),
         ),
       ),
+    );
+  }
+}
+
+class _LocationInputField extends StatefulWidget {
+  final TextEditingController controller;
+  const _LocationInputField({required this.controller});
+
+  @override
+  State<_LocationInputField> createState() => _LocationInputFieldState();
+}
+
+class _LocationInputFieldState extends State<_LocationInputField> {
+  bool _isLoadingGps = false;
+
+  static const _ugandaLocations = [
+    'Kampala - Central', 'Kampala - Nakawa', 'Kampala - Makindye', 'Kampala - Rubaga', 'Kampala - Kawempe',
+    'Wakiso - Entebbe', 'Wakiso - Kira', 'Wakiso - Nansana', 'Wakiso - Makindye Ssabagabo',
+    'Mukono', 'Jinja', 'Mbarara', 'Gulu', 'Mbale', 'Masaka', 'Lira', 'Hoima', 'Fort Portal', 'Arua', 'Soroti'
+  ];
+
+  Future<void> _fetchGpsLocation() async {
+    setState(() => _isLoadingGps = true);
+    try {
+      // Inline simplified GPS fetch since it's just for MVP
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) throw 'Location services are disabled.';
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) throw 'Location permissions are denied';
+      }
+      if (permission == LocationPermission.deniedForever) throw 'Location permissions are permanently denied';
+
+      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+      
+      if (placemarks.isNotEmpty) {
+        final p = placemarks.first;
+        final address = '${p.street}, ${p.subLocality}, ${p.locality}';
+        widget.controller.text = address.replaceAll(RegExp(r'^, |, $'), ''); // clean up empty parts
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('GPS Error: $e'), backgroundColor: Colors.red));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingGps = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Autocomplete<String>(
+          optionsBuilder: (textEditingValue) {
+            if (textEditingValue.text.isEmpty) return const Iterable<String>.empty();
+            return _ugandaLocations.where((s) => s.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+          },
+          onSelected: (s) => widget.controller.text = s,
+          fieldViewBuilder: (ctx, ctrl, focusNode, onSubmit) {
+            // Keep controller in sync
+            if (widget.controller.text != ctrl.text && !focusNode.hasFocus) {
+               ctrl.text = widget.controller.text;
+            }
+            ctrl.addListener(() {
+              if (widget.controller.text != ctrl.text) widget.controller.text = ctrl.text;
+            });
+            widget.controller.addListener(() {
+               if (widget.controller.text != ctrl.text) ctrl.text = widget.controller.text;
+            });
+
+            return Container(
+              decoration: BoxDecoration(color: const Color(0xFFF0F4FF), borderRadius: BorderRadius.circular(12)),
+              child: TextField(
+                controller: ctrl,
+                focusNode: focusNode,
+                decoration: InputDecoration(
+                  hintText: 'Search district/city or enter address manually',
+                  hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                  prefixIcon: const Icon(Icons.location_city, color: Color(0xFF0D47A1), size: 20),
+                  suffixIcon: _isLoadingGps
+                      ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)))
+                      : IconButton(
+                          icon: const Icon(Icons.my_location, color: Color(0xFF0D6EFD), size: 20),
+                          onPressed: _fetchGpsLocation,
+                          tooltip: 'Use my current location',
+                        ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            );
+          },
+          optionsViewBuilder: (ctx, onSelected, options) => Align(
+            alignment: Alignment.topLeft,
+            child: Material(
+              elevation: 4,
+              borderRadius: BorderRadius.circular(8),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 200),
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  children: options.map((String option) => ListTile(
+                    dense: true,
+                    title: Text(option),
+                    onTap: () => onSelected(option),
+                  )).toList(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
