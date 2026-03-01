@@ -4,13 +4,14 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const options = {
-    apiKey: process.env.AFRICAS_TALKING_API_KEY as string,
-    username: process.env.AFRICAS_TALKING_USERNAME as string || 'sandbox'
+const getAT = () => {
+    const apiKey = process.env.AFRICAS_TALKING_API_KEY as string;
+    const username = (process.env.AFRICAS_TALKING_USERNAME as string) || 'sandbox';
+    if (!apiKey) {
+        return null;
+    }
+    return Africastalking({ apiKey, username });
 };
-
-const africastalking = Africastalking(options);
-const airtime = africastalking.AIRTIME;
 
 /**
  * Send airtime to a phone number
@@ -19,12 +20,13 @@ const airtime = africastalking.AIRTIME;
  */
 export const sendAirtime = async (phone: string, amount: number) => {
     try {
-        if (options.username === 'sandbox') {
-            console.log(`[Airtime Mock] To: ${phone} -> UGX ${amount}`);
+        const at = getAT();
+        if (!at) {
+            console.log(`[Airtime Mock] No AT API key configured. Would have sent UGX ${amount} to: ${phone}`);
             return { success: true, mocked: true };
         }
 
-        const result = await airtime.send({
+        const result = await at.AIRTIME.send({
             recipients: [{
                 phoneNumber: phone,
                 currencyCode: 'UGX',

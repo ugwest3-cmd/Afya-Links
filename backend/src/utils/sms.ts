@@ -4,25 +4,29 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const options = {
-    apiKey: process.env.AFRICAS_TALKING_API_KEY as string,
-    username: process.env.AFRICAS_TALKING_USERNAME as string || 'sandbox'
+const getAT = () => {
+    const apiKey = process.env.AFRICAS_TALKING_API_KEY as string;
+    const username = (process.env.AFRICAS_TALKING_USERNAME as string) || 'sandbox';
+    if (!apiKey) {
+        return null;
+    }
+    return Africastalking({ apiKey, username });
 };
 
-const africastalking = Africastalking(options);
-
+/**
+ * Send SMS via Africa's Talking
+ * @param to Array of E.164 formatted phone numbers (+256...)
+ * @param message SMS body text
+ */
 export const sendSMS = async (to: string[], message: string) => {
     try {
-        if (!options.apiKey || options.apiKey === 'YOUR_AT_API_KEY') {
-            console.warn(`[SMS Mock] To: ${to.join(', ')} -> ${message}`);
+        const at = getAT();
+        if (!at) {
+            console.warn(`[SMS Mock] No AT API key configured. Would have sent to: ${to.join(', ')} → "${message}"`);
             return { success: true, mocked: true };
         }
 
-        const result = await africastalking.SMS.send({
-            to,
-            message
-        });
-
+        const result = await at.SMS.send({ to, message });
         console.log('[SMS Sent]', result);
         return { success: true, result };
     } catch (error: any) {
