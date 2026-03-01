@@ -1,18 +1,27 @@
-import { useState, useEffect } from 'react';
-import { Package, RefreshCw } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Package, RefreshCw, Search } from 'lucide-react';
 import api from '../utils/api';
+
+const STATUS_BADGE: Record<string, string> = {
+    PENDING: 'badge-warning',
+    ASSIGNED: 'badge-info',
+    DELIVERED: 'badge-success',
+    REJECTED: 'badge-danger',
+};
+
+const FILTER_TABS = ['All', 'PENDING', 'ASSIGNED', 'DELIVERED', 'REJECTED'];
 
 export const Orders = () => {
     const [orders, setOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [activeFilter, setActiveFilter] = useState('All');
+    const [search, setSearch] = useState('');
 
     const fetchOrders = async () => {
         try {
             setLoading(true);
             const res = await api.get('/admin/orders');
-            if (res.data.success) {
-                setOrders(res.data.orders);
-            }
+            if (res.data.success) setOrders(res.data.orders);
         } catch (error) {
             console.error('Failed to fetch orders:', error);
         } finally {
@@ -20,91 +29,84 @@ export const Orders = () => {
         }
     };
 
-    useEffect(() => {
-        fetchOrders();
-    }, []);
+    useEffect(() => { fetchOrders(); }, []);
 
-
-    const getStatusStyle = (status: string) => {
-        switch (status) {
-            case 'DELIVERED': return { background: 'rgba(34, 197, 94, 0.1)', color: 'var(--status-success)' };
-            case 'ASSIGNED': return { background: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-primary)' };
-            case 'REJECTED': return { background: 'rgba(239, 68, 68, 0.1)', color: 'var(--status-danger)' };
-            default: return { background: 'rgba(234, 179, 8, 0.1)', color: 'var(--status-warning)' };
-        }
-    };
+    const filtered = useMemo(() => {
+        return orders.filter(o => {
+            const statusMatch = activeFilter === 'All' || o.status === activeFilter;
+            const searchMatch = !search || o.order_code?.toLowerCase().includes(search.toLowerCase()) || o.id?.includes(search);
+            return statusMatch && searchMatch;
+        });
+    }, [orders, activeFilter, search]);
 
     return (
         <div className="fade-in">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <div>
-                    <h2 className="text-h2" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <Package size={28} style={{ color: 'var(--accent-primary)' }} />
-                        Order Orchestration
-                    </h2>
-                    <p className="text-muted">Monitor global order statuses and logistics.</p>
+            <div className="page-header">
+                <div className="page-header-left">
+                    <h2><Package size={22} style={{ color: 'var(--accent-primary)' }} /> Order Orchestration</h2>
+                    <p>Monitor all platform orders in real-time</p>
                 </div>
-                <button
-                    onClick={fetchOrders}
-                    className="btn btn-secondary"
-                    disabled={loading}
-                >
-                    <RefreshCw size={18} className={loading ? 'spin' : ''} />
+                <button className="btn btn-secondary" onClick={fetchOrders} disabled={loading}>
+                    <RefreshCw size={15} className={loading ? 'spin' : ''} />
                     Refresh
                 </button>
             </div>
 
-            <div className="card">
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                        <thead>
-                            <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-                                <th style={{ padding: '1rem', fontWeight: 500 }}>Order ID</th>
-                                <th style={{ padding: '1rem', fontWeight: 500 }}>Code</th>
-                                <th style={{ padding: '1rem', fontWeight: 500 }}>Status</th>
-                                <th style={{ padding: '1rem', fontWeight: 500 }}>Value (UGX)</th>
-                                <th style={{ padding: '1rem', fontWeight: 500 }}>Date</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {orders.length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                                        No active orders found.
-                                    </td>
-                                </tr>
-                            ) : (
-                                orders.map((order) => (
-                                    <tr key={order.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                        <td style={{ padding: '1rem', fontFamily: 'monospace' }}>
-                                            {order.id.split('-')[0]}...
-                                        </td>
-                                        <td style={{ padding: '1rem', fontFamily: 'monospace', fontWeight: 'bold' }}>
-                                            {order.order_code || '---'}
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <span style={{
-                                                padding: '4px 12px',
-                                                borderRadius: '20px',
-                                                fontSize: '0.85rem',
-                                                fontWeight: 600,
-                                                ...getStatusStyle(order.status)
-                                            }}>
-                                                {order.status}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '1rem', fontWeight: 500 }}>
-                                            {order.subtotal?.toLocaleString() ?? '---'}
-                                        </td>
-                                        <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>
-                                            {new Date(order.created_at).toLocaleDateString()}
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+            {/* Controls */}
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+                <div className="filter-tabs">
+                    {FILTER_TABS.map(f => (
+                        <button key={f} className={`filter-tab ${activeFilter === f ? 'active' : ''}`} onClick={() => setActiveFilter(f)}>
+                            {f === 'All' ? `All (${orders.length})` : f}
+                        </button>
+                    ))}
                 </div>
+                <div className="search-bar" style={{ marginLeft: 'auto' }}>
+                    <Search size={14} color="var(--text-secondary)" />
+                    <input
+                        placeholder="Search by code or ID..."
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                    />
+                </div>
+            </div>
+
+            <div className="table-container">
+                <table className="data-table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Code</th>
+                            <th>Status</th>
+                            <th>Value (UGX)</th>
+                            <th>Delivery Address</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {loading ? (
+                            <tr><td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}><RefreshCw className="spin" size={20} style={{ margin: '0 auto', display: 'block' }} /></td></tr>
+                        ) : filtered.length === 0 ? (
+                            <tr>
+                                <td colSpan={6}>
+                                    <div className="empty-state">
+                                        <Package size={42} />
+                                        <p>No orders found{activeFilter !== 'All' ? ` with status "${activeFilter}"` : ''}.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        ) : filtered.map(order => (
+                            <tr key={order.id}>
+                                <td className="font-mono" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{order.id.split('-')[0]}…</td>
+                                <td className="font-mono" style={{ fontWeight: 700, fontSize: '0.95rem' }}>{order.order_code || '—'}</td>
+                                <td><span className={`badge ${STATUS_BADGE[order.status] ?? 'badge-info'}`}>{order.status}</span></td>
+                                <td style={{ fontWeight: 500 }}>{order.subtotal?.toLocaleString() ?? '—'}</td>
+                                <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.delivery_address || '—'}</td>
+                                <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{new Date(order.created_at).toLocaleDateString()}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
         </div>
     );

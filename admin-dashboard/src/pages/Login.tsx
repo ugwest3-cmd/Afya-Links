@@ -68,7 +68,7 @@ export const Login = () => {
                                 required
                             />
                         </div>
-                        <button type="submit" className="btn-primary flex items-center justify-center" disabled={loading} style={{ gap: '8px', marginTop: '0.5rem' }}>
+                        <button type="submit" className="btn btn-primary w-full" disabled={loading} style={{ justifyContent: 'center', marginTop: '0.5rem' }}>
                             {loading ? 'Sending...' : 'Request OTP'}
                             <ArrowRight size={18} />
                         </button>
@@ -88,16 +88,16 @@ export const Login = () => {
                                 style={{ letterSpacing: '0.5em', textAlign: 'center', fontSize: '1.25rem', fontWeight: 600 }}
                             />
                         </div>
-                        <button type="submit" className="btn-primary flex items-center justify-center" disabled={loading} style={{ gap: '8px', marginTop: '0.5rem' }}>
+                        <button type="submit" className="btn btn-primary w-full" disabled={loading} style={{ justifyContent: 'center', marginTop: '0.5rem' }}>
                             <ShieldCheck size={18} />
                             {loading ? 'Verifying...' : 'Authenticate'}
                         </button>
                         <button
                             type="button"
                             onClick={() => setStep('PHONE')}
-                            className="btn-secondary"
-                            style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)' }}>
-                            Back to phone entry
+                            className="btn btn-secondary w-full"
+                            style={{ justifyContent: 'center', marginTop: '0.25rem' }}>
+                            ← Back to phone entry
                         </button>
                     </form>
                 )}
