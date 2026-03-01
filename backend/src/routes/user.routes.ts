@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middlewares/authMiddleware';
 import { upload } from '../middlewares/uploadMiddleware';
-import { setupClinicProfile, setupPharmacyProfile, getProfileStatus, uploadVerificationDoc, updateAddress } from '../controllers/user.controller';
+import { setupClinicProfile, setupPharmacyProfile, getProfileStatus, uploadVerificationDoc, updateAddress, getNotifications } from '../controllers/user.controller';
 
 const router = Router();
 
@@ -9,6 +9,7 @@ const router = Router();
 router.use(requireAuth);
 
 router.get('/status', getProfileStatus);
+router.get('/notifications', getNotifications);
 
 router.post(
     '/profile/clinic',

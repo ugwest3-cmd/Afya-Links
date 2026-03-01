@@ -109,5 +109,10 @@ class ApiService {
     final headers = await _authHeaders();
     return http.get(Uri.parse('$baseUrl/pharmacies/invoices'), headers: headers);
   }
+  /// GET /api/users/notifications
+  static Future<http.Response> getNotifications() async {
+    final headers = await _authHeaders();
+    return http.get(Uri.parse('$baseUrl/users/notifications'), headers: headers);
+  }
 }
 

@@ -177,3 +177,21 @@ export const updateAddress = async (req: AuthRequest, res: Response): Promise<vo
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+export const getNotifications = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+
+        const { data: notifications, error } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        res.status(200).json({ success: true, notifications });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+};
