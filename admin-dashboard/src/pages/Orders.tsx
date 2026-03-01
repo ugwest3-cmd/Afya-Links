@@ -1,22 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Package, RefreshCw } from 'lucide-react';
+import api from '../utils/api';
 
 export const Orders = () => {
     const [orders, setOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const token = localStorage.getItem('afyalinks_admin_token');
 
     const fetchOrders = async () => {
         try {
             setLoading(true);
-            const res = await fetch('http://localhost:5000/api/admin/orders', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            const data = await res.json();
-            if (data.success) {
-                setOrders(data.orders);
+            const res = await api.get('/admin/orders');
+            if (res.data.success) {
+                setOrders(res.data.orders);
             }
         } catch (error) {
             console.error('Failed to fetch orders:', error);
@@ -26,8 +21,9 @@ export const Orders = () => {
     };
 
     useEffect(() => {
-        if (token) fetchOrders();
-    }, [token]);
+        fetchOrders();
+    }, []);
+
 
     const getStatusStyle = (status: string) => {
         switch (status) {

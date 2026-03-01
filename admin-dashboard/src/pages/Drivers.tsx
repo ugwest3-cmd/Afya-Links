@@ -1,23 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Truck, RefreshCw, Save } from 'lucide-react';
+import api from '../utils/api';
 
 export const Drivers = () => {
     const [drivers, setDrivers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const token = localStorage.getItem('afyalinks_admin_token');
 
     const fetchDrivers = async () => {
         try {
             setLoading(true);
-            const res = await fetch('http://localhost:5000/api/admin/users', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            const data = await res.json();
-            if (data.success) {
+            const res = await api.get('/admin/users');
+            if (res.data.success) {
                 // Filter only drivers
-                setDrivers(data.users.filter((u: any) => u.role === 'DRIVER' && u.is_verified));
+                setDrivers(res.data.users.filter((u: any) => u.role === 'DRIVER' && u.is_verified));
             }
         } catch (error) {
             console.error('Failed to fetch drivers:', error);
@@ -27,30 +22,24 @@ export const Drivers = () => {
     };
 
     useEffect(() => {
-        if (token) fetchDrivers();
-    }, [token]);
+        fetchDrivers();
+    }, []);
 
     const handleUpdateProfile = async (driverId: string, region: string, availableHours: string) => {
         try {
-            const res = await fetch(`http://localhost:5000/api/admin/drivers/${driverId}/profile`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ region, available_hours: availableHours })
-            });
-
-            if (res.ok) {
+            const res = await api.post(`/admin/drivers/${driverId}/profile`, { region, available_hours: availableHours });
+            if (res.data.success) {
                 alert('Driver profile updated successfully');
             } else {
-                alert('Failed to update driver');
+                alert('Failed to update driver: ' + res.data.message);
             }
-        } catch (e) {
+        } catch (e: any) {
+            const msg = e?.response?.data?.message || 'Error updating driver';
             console.error(e);
-            alert('Error updating driver');
+            alert(msg);
         }
     };
+
 
     return (
         <div className="fade-in">
