@@ -10,6 +10,7 @@ class PriceOffersScreen extends StatefulWidget {
   final List<String> pharmacyIds;
   final List<Map<String, dynamic>> pharmacies;
   final String deliveryAddress;
+  final VoidCallback? onOrderPlaced;
 
   const PriceOffersScreen({
     super.key,
@@ -17,6 +18,7 @@ class PriceOffersScreen extends StatefulWidget {
     required this.pharmacyIds,
     required this.pharmacies,
     required this.deliveryAddress,
+    this.onOrderPlaced,
   });
 
   @override
@@ -132,9 +134,10 @@ class _PriceOffersScreenState extends State<PriceOffersScreen> {
         final navigator = Navigator.of(context);
 
         if (success) {
-          // Pop all routes back to root (main shell) — one pop would leave
-          // NewOrderScreen, two pops wrongly removes the main shell itself
+          // Pop back to root, then switch shell to Orders tab (index 1)
+          // so Pay via Pesapal button is immediately visible
           navigator.popUntil((route) => route.isFirst);
+          widget.onOrderPlaced?.call(); // switch to Orders tab
           messenger.showSnackBar(SnackBar(
             content: Row(children: [
               const Icon(Icons.check_circle, color: Colors.white),

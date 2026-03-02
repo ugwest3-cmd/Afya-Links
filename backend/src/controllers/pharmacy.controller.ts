@@ -100,7 +100,7 @@ export const respondToOrder = async (req: AuthRequest, res: Response): Promise<v
 
         const { data: order, error: orderError } = await supabase
             .from('orders')
-            .select('id, status')
+            .select('id, status, clinic_id')
             .eq('id', orderId)
             .eq('pharmacy_id', String(pharmacyId))
             .single();
@@ -128,6 +128,33 @@ export const respondToOrder = async (req: AuthRequest, res: Response): Promise<v
             .eq('id', orderId);
 
         if (updateError) throw updateError;
+
+        // Notify the clinic about the order status change
+        const shortId = orderId.slice(0, 8).toUpperCase();
+        const notifMap: Record<string, { title: string; body: string }> = {
+            ACCEPTED: {
+                title: '✅ Order Accepted',
+                body: `Your order #${shortId} has been accepted by the pharmacy and is being prepared.`
+            },
+            PARTIAL: {
+                title: '⚠️ Order Partially Accepted',
+                body: `Your order #${shortId} was partially accepted. Some items may be missing. Check your Orders tab.`
+            },
+            REJECTED: {
+                title: '❌ Order Rejected',
+                body: `Your order #${shortId} was rejected by the pharmacy. Reason: ${rejected_reason || 'No reason provided'}.`
+            }
+        };
+        const notif = notifMap[status];
+        if (notif && order.clinic_id) {
+            Promise.resolve(supabase.from('notifications').insert([{
+                user_id: order.clinic_id,
+                title: notif.title,
+                body: notif.body,
+                type: 'ORDER_STATUS',
+                is_read: false
+            }])).catch(console.error);
+        }
 
         if (status === 'ACCEPTED' || status === 'PARTIAL') {
             console.log(`[Order Processing] Order ${orderId} Accepted. Order Code: ${updateData.order_code}. Waiting for Pharmacy to mark ready.`);

@@ -41,7 +41,7 @@ class _MainShellState extends State<MainShell> {
     _pages = [
       DashboardScreen(clinicName: widget.clinicName, onNewOrder: () => setState(() => _currentIndex = 2)),
       const OrdersScreen(),
-      const NewOrderScreen(),
+      NewOrderScreen(onOrderPlaced: () => setState(() => _currentIndex = 1)),
       ProfileScreen(clinicName: widget.clinicName),
     ];
   }

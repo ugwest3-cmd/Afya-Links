@@ -6,7 +6,8 @@ import 'screen_price_offers.dart';
 // ─── Step 1 & 2: Drug Items + Pharmacy Selection ─────────────────────────────
 
 class NewOrderScreen extends StatefulWidget {
-  const NewOrderScreen({super.key});
+  final VoidCallback? onOrderPlaced;
+  const NewOrderScreen({super.key, this.onOrderPlaced});
 
   @override
   State<NewOrderScreen> createState() => _NewOrderScreenState();
@@ -103,6 +104,7 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
           pharmacyIds: _selectedPharmacyIds,
           pharmacies: _pharmacies.where((p) => _selectedPharmacyIds.contains(p['id'])).toList(),
           deliveryAddress: _deliveryAddress,
+          onOrderPlaced: widget.onOrderPlaced,
         ),
       ),
     );

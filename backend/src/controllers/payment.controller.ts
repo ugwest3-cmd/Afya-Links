@@ -117,7 +117,7 @@ export const pesapalWebhook = async (req: Request, res: Response): Promise<void>
 
             if (order && order.status === 'AWAITING_PAYMENT') {
                 if (Number(order.total_payable) === Number(txStatus.amount)) {
-                    // Correct payment
+                    // Correct payment — update order
                     await supabase.from('orders')
                         .update({
                             status: 'PAID_READY',
@@ -125,6 +125,33 @@ export const pesapalWebhook = async (req: Request, res: Response): Promise<void>
                             escrow_status: 'LOCKED'
                         })
                         .eq('id', OrderMerchantReference);
+
+                    // Fetch clinic_id and pharmacy_id for notifications
+                    const { data: fullOrder } = await supabase
+                        .from('orders')
+                        .select('clinic_id, pharmacy_id')
+                        .eq('id', OrderMerchantReference)
+                        .single();
+
+                    if (fullOrder) {
+                        const shortId = (OrderMerchantReference as string).slice(0, 8).toUpperCase();
+                        Promise.resolve(supabase.from('notifications').insert([
+                            {
+                                user_id: fullOrder.clinic_id,
+                                title: '✅ Payment Confirmed',
+                                body: `Your payment for order #${shortId} was successful. The pharmacy is now processing your order.`,
+                                type: 'PAYMENT_SUCCESS',
+                                is_read: false
+                            },
+                            {
+                                user_id: fullOrder.pharmacy_id,
+                                title: '💰 Payment Received – Action Required',
+                                body: `Payment for order #${shortId} has been confirmed. Please check your Orders Inbox and action this order.`,
+                                type: 'PAYMENT_SUCCESS',
+                                is_read: false
+                            }
+                        ])).catch(console.error);
+                    }
                 } else {
                     // Amount mismatch
                     console.error(`Amount mismatch on order ${OrderMerchantReference}. Expected ${order.total_payable}, got ${txStatus.amount}`);

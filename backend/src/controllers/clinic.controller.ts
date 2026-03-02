@@ -115,6 +115,15 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
 
         if (itemsError) throw itemsError;
 
+        // Notify pharmacy of new incoming order (non-blocking)
+        Promise.resolve(supabase.from('notifications').insert([{
+            user_id: pharmacy_id,
+            title: '🛒 New Order Received',
+            body: `A new order (#${order.id.slice(0, 8).toUpperCase()}) has been placed and is awaiting payment. It will appear in your inbox once payment clears.`,
+            type: 'NEW_ORDER',
+            is_read: false
+        }])).catch(console.error);
+
         res.status(201).json({ success: true, message: 'Order created successfully', order_id: order.id });
 
     } catch (error: any) {
