@@ -127,10 +127,15 @@ class _PriceOffersScreenState extends State<PriceOffersScreen> {
 
       if (mounted) {
         _ttlTimer.cancel();
+        // Capture messenger and navigator BEFORE any pops so context stays valid
+        final messenger = ScaffoldMessenger.of(context);
+        final navigator = Navigator.of(context);
+
         if (success) {
-          Navigator.pop(context); // go back to New Order
-          Navigator.pop(context); // stay on main shell
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          // Pop all routes back to root (main shell) — one pop would leave
+          // NewOrderScreen, two pops wrongly removes the main shell itself
+          navigator.popUntil((route) => route.isFirst);
+          messenger.showSnackBar(SnackBar(
             content: Row(children: [
               const Icon(Icons.check_circle, color: Colors.white),
               const SizedBox(width: 10),
@@ -142,7 +147,7 @@ class _PriceOffersScreenState extends State<PriceOffersScreen> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ));
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          messenger.showSnackBar(SnackBar(
             content: Text('Error: ${body['message'] ?? 'Could not place order'}'),
             backgroundColor: Colors.red.shade700,
             behavior: SnackBarBehavior.floating,
