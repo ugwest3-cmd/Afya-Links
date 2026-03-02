@@ -10,7 +10,9 @@ import {
     getAllOrders,
     updateDriverProfile,
     sendNotificationAdmin,
-    deleteUser
+    deleteUser,
+    getEscrowLedger,
+    resolveDispute
 } from '../controllers/admin.controller';
 
 const router = Router();
@@ -28,5 +30,9 @@ router.post('/drivers/:id/profile', updateDriverProfile);
 router.post('/notifications/send', sendNotificationAdmin);
 router.get('/invoices', getInvoices);
 router.post('/invoices/:id/verify', verifyPayment);
+
+// Escrow Management
+router.get('/escrow', getEscrowLedger);
+router.post('/escrow/resolve', resolveDispute);
 
 export default router;

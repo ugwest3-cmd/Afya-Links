@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
     ShieldCheck, Activity, FileText, LogOut, LayoutDashboard,
-    Users, Truck, Bell, Package, Zap
+    Users, Truck, Bell, Package, Zap, DollarSign
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -14,6 +14,7 @@ const NAV_ITEMS = [
     { label: 'Drivers', icon: Truck, path: '/drivers', section: 'operations' },
     { label: 'Notifications', icon: Bell, path: '/notifications', section: 'tools' },
     { label: 'Invoices', icon: FileText, path: '/invoices', section: 'tools' },
+    { label: 'Escrow Ledger', icon: DollarSign, path: '/escrow', section: 'tools' },
 ];
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
@@ -24,6 +25,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
     '/drivers': { title: 'Driver Management', subtitle: 'Configure driver regions and availability' },
     '/notifications': { title: 'Broadcast Center', subtitle: 'Send platform-wide alerts to users' },
     '/invoices': { title: 'Invoices', subtitle: 'Track transactions and manage payments' },
+    '/escrow': { title: 'Escrow Ledger', subtitle: 'Manage locked and released funds' },
 };
 
 const Sidebar = () => {

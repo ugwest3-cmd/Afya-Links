@@ -277,3 +277,91 @@ export const verifyPayment = async (req: AuthRequest, res: Response): Promise<vo
         res.status(500).json({ success: false, message: e.message });
     }
 }
+
+export const getEscrowLedger = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { data: orders, error } = await supabase
+            .from('orders')
+            .select(`
+                id, 
+                order_code,
+                status, 
+                escrow_status, 
+                payment_status,
+                total_payable,
+                pharmacy_net,
+                driver_net,
+                total_platform_revenue,
+                created_at,
+                pharmacy:users!orders_pharmacy_id_fkey(name),
+                clinic:users!orders_clinic_id_fkey(name)
+            `)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Calculate aggregates
+        const totalLocked = orders.filter(o => o.escrow_status === 'LOCKED').reduce((sum, o) => sum + (Number(o.total_payable) || 0), 0);
+        const totalReleased = orders.filter(o => o.escrow_status === 'RELEASED').reduce((sum, o) => sum + (Number(o.total_payable) || 0), 0);
+        const platformRevenue = orders.filter(o => o.escrow_status === 'RELEASED').reduce((sum, o) => sum + (Number(o.total_platform_revenue) || 0), 0);
+
+        res.status(200).json({
+            success: true,
+            metrics: {
+                totalLocked,
+                totalReleased,
+                platformRevenue,
+                activeDisputes: orders.filter(o => o.status === 'DISPUTE').length
+            },
+            ledger: orders
+        });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+};
+
+export const resolveDispute = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { order_id, resolution_action } = req.body;
+        // resolution_action: 'RELEASE_TO_PHARMACY' | 'REFUND_TO_CLINIC'
+
+        if (!order_id || !['RELEASE_TO_PHARMACY', 'REFUND_TO_CLINIC'].includes(resolution_action)) {
+            res.status(400).json({ success: false, message: 'Invalid parameters' });
+            return;
+        }
+
+        const { data: order, error } = await supabase
+            .from('orders')
+            .select('id, escrow_status, status')
+            .eq('id', order_id)
+            .single();
+
+        if (error || !order) {
+            res.status(404).json({ success: false, message: 'Order not found' });
+            return;
+        }
+
+        if (order.escrow_status !== 'LOCKED') {
+            res.status(400).json({ success: false, message: 'Funds are not locked in escrow.' });
+            return;
+        }
+
+        if (resolution_action === 'RELEASE_TO_PHARMACY') {
+            await supabase.from('orders').update({
+                status: 'COMPLETED',
+                escrow_status: 'RELEASED',
+                payout_status: 'INITIATED'
+            }).eq('id', order_id);
+        } else if (resolution_action === 'REFUND_TO_CLINIC') {
+            await supabase.from('orders').update({
+                status: 'REFUNDED',
+                escrow_status: 'RETURNED'
+            }).eq('id', order_id);
+        }
+
+        res.status(200).json({ success: true, message: `Dispute resolved: ${resolution_action}` });
+
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+};
