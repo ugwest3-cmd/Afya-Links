@@ -52,7 +52,10 @@ export const getPesapalToken = async (): Promise<string> => {
             return pesapalToken as string;
         }
 
-        throw new Error('Could not get Pesapal token');
+        // Log full response so we can diagnose credential issues
+        const responseDetail = JSON.stringify(response.data);
+        console.error('[Pesapal Auth] No token in response:', responseDetail);
+        throw new Error(`Could not get Pesapal token. Pesapal responded: ${responseDetail}`);
     } catch (error: any) {
         const detail = error?.response?.data ? JSON.stringify(error.response.data) : error.message;
         console.error('Pesapal Auth Error:', detail);
