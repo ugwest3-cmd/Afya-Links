@@ -148,7 +148,9 @@ export const submitOrder = async (params: SubmitOrderParams) => {
             };
         }
 
-        throw new Error('Invalid response from Pesapal SubmitOrder');
+        const responseDetail = JSON.stringify(response.data);
+        console.error('[Pesapal SubmitOrder] Missing redirect_url. Response:', responseDetail);
+        throw new Error(`Invalid response from Pesapal SubmitOrder: ${responseDetail}`);
     } catch (error: any) {
         const detail = error?.response?.data ? JSON.stringify(error.response.data) : error.message;
         console.error('Pesapal Submit Order Error:', detail);
