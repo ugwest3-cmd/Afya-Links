@@ -165,10 +165,10 @@ export const updateAddress = async (req: AuthRequest, res: Response): Promise<vo
 
         const table = role === 'PHARMACY' ? 'pharmacy_profiles' : 'clinic_profiles';
 
+        // Use upsert so it creates a row if none exists yet
         const { error } = await supabase
             .from(table)
-            .update({ address })
-            .eq('user_id', userId);
+            .upsert({ user_id: userId, address }, { onConflict: 'user_id' });
 
         if (error) throw error;
 
