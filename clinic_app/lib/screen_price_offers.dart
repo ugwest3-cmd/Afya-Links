@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'api_service.dart';
 
 // ─── Step 3: Price Offers + Confirm Order ─────────────────────────────────────
@@ -119,48 +120,77 @@ class _PriceOffersScreenState extends State<PriceOffersScreen> {
     }).toList();
 
     try {
-      final res = await ApiService.createOrder(
+      // ── Step 1: Create the order ──────────────────────────────────────────
+      final orderRes = await ApiService.createOrder(
         pharmacyId: _selectedPharmacyId!,
         items: orderItems,
         deliveryAddress: widget.deliveryAddress,
       );
-      final body = jsonDecode(res.body);
-      final success = res.statusCode == 201;
+      final orderBody = jsonDecode(orderRes.body);
 
-      if (mounted) {
-        _ttlTimer.cancel();
-        // Capture messenger and navigator BEFORE any pops so context stays valid
-        final messenger = ScaffoldMessenger.of(context);
-        final navigator = Navigator.of(context);
-
-        if (success) {
-          // Pop back to root, then switch shell to Orders tab (index 1)
-          // so Pay via Pesapal button is immediately visible
-          navigator.popUntil((route) => route.isFirst);
-          widget.onOrderPlaced?.call(); // switch to Orders tab
-          messenger.showSnackBar(SnackBar(
-            content: Row(children: [
-              const Icon(Icons.check_circle, color: Colors.white),
-              const SizedBox(width: 10),
-              Expanded(child: Text('Order placed! ID: ${body['order_id'] ?? ''}')),
-            ]),
-            backgroundColor: _green,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 5),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ));
-        } else {
-          messenger.showSnackBar(SnackBar(
-            content: Text('Error: ${body['message'] ?? 'Could not place order'}'),
+      if (orderRes.statusCode != 201) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Could not place order: ${orderBody['message'] ?? 'Unknown error'}'),
             backgroundColor: Colors.red.shade700,
             behavior: SnackBarBehavior.floating,
           ));
         }
+        setState(() => _submitting = false);
+        return;
       }
-    } catch (_) {
+
+      final orderId = orderBody['order_id'] as String;
+
+      // ── Step 2: Initiate Pesapal payment immediately ──────────────────────
+      final payRes = await ApiService.initiatePayment(orderId);
+      final payBody = jsonDecode(payRes.body);
+
+      if (payRes.statusCode != 200 || payBody['redirect_url'] == null) {
+        // Order created but payment initiation failed — go to Orders tab
+        if (mounted) {
+          _ttlTimer.cancel();
+          final navigator = Navigator.of(context);
+          final messenger = ScaffoldMessenger.of(context);
+          navigator.popUntil((route) => route.isFirst);
+          widget.onOrderPlaced?.call();
+          messenger.showSnackBar(SnackBar(
+            content: Text('Order placed but could not open payment: ${payBody['message'] ?? 'Try paying from Orders tab'}'),
+            backgroundColor: _orange,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 6),
+          ));
+        }
+        setState(() => _submitting = false);
+        return;
+      }
+
+      // ── Step 3: Open Pesapal checkout in an in-app browser ────────────────
+      final redirectUrl = Uri.parse(payBody['redirect_url'] as String);
+      await launchUrl(redirectUrl, mode: LaunchMode.inAppWebView);
+
+      // After webview closes — go to Orders tab so they can track status
+      if (mounted) {
+        _ttlTimer.cancel();
+        final navigator = Navigator.of(context);
+        final messenger = ScaffoldMessenger.of(context);
+        navigator.popUntil((route) => route.isFirst);
+        widget.onOrderPlaced?.call();
+        messenger.showSnackBar(const SnackBar(
+          content: Row(children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 10),
+            Expanded(child: Text('Order placed! Check Orders tab for payment status.')),
+          ]),
+          backgroundColor: _green,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 5),
+        ));
+      }
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Network error. Is the server running?'),
+          content: Text('Network error. Please check your connection.'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ));
@@ -402,17 +432,17 @@ class _PriceOffersScreenState extends State<PriceOffersScreen> {
                       child: _submitting
                           ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
                           : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                              const Icon(Icons.send_rounded, color: Colors.white, size: 20),
-                              const SizedBox(width: 8),
-                              Text(
-                                _selectedPharmacyId == null ? 'Select a pharmacy above' : 'Confirm & Place Order',
-                                style: TextStyle(
-                                  color: _selectedPharmacyId == null ? Colors.grey.shade500 : Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ]),
+                    const Icon(Icons.payment_rounded, color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      _selectedPharmacyId == null ? 'Select a pharmacy above' : 'Confirm & Pay Order',
+                      style: TextStyle(
+                        color: _selectedPharmacyId == null ? Colors.grey.shade500 : Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ]),
                     ),
                   ),
                 ),
