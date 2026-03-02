@@ -41,6 +41,25 @@ class _NotificationsSheetState extends State<NotificationsSheet> {
     setState(() => _isLoading = false);
   }
 
+  Future<void> _markAllRead() async {
+    try {
+      final res = await ApiService.markNotificationsRead();
+      if (res.statusCode == 200) {
+        // Optimistically update UI or re-fetch
+        setState(() {
+          for (var n in _notifications) {
+            n['is_read'] = true;
+          }
+        });
+        if (widget.onRead != null) {
+          widget.onRead!();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error marking notifications read: $e');
+    }
+  }
+
   String _formatDate(String isoString) {
     try {
       final date = DateTime.parse(isoString).toLocal();
@@ -82,8 +101,8 @@ class _NotificationsSheetState extends State<NotificationsSheet> {
               children: [
                 const Text('Notifications & Alerts', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                 TextButton(
-                  onPressed: widget.onRead,
-                  child: const Text('Mark all read', style: TextStyle(color: Color(0xFF0D6EFD), fontSize: 12)),
+                  onPressed: _notifications.any((n) => n['is_read'] == false) ? _markAllRead : null,
+                  child: Text('Mark all read', style: TextStyle(color: _notifications.any((n) => n['is_read'] == false) ? const Color(0xFF0D6EFD) : Colors.grey, fontSize: 12)),
                 ),
               ],
             ),

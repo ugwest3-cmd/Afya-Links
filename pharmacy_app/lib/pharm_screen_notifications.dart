@@ -43,6 +43,21 @@ class _PharmNotificationsSheetState extends State<PharmNotificationsSheet> {
     setState(() => _isLoading = false);
   }
 
+  Future<void> _markAllRead() async {
+    try {
+      final res = await ApiService.markNotificationsRead();
+      if (res.statusCode == 200) {
+        setState(() {
+          for (var n in _notifications) {
+            n['is_read'] = true;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error marking notifications read: $e');
+    }
+  }
+
   Color _tagColor(String tag) {
     if (tag.toLowerCase().contains('order')) return _orange;
     if (tag.toLowerCase().contains('driver')) return _primary;
@@ -96,8 +111,8 @@ class _PharmNotificationsSheetState extends State<PharmNotificationsSheet> {
                 const Text('Notifications', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const Spacer(),
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Mark all read', style: TextStyle(color: Color(0xFF1B5E20), fontSize: 12)),
+                  onPressed: _notifications.any((n) => n['is_read'] == false) ? _markAllRead : null,
+                  child: Text('Mark all read', style: TextStyle(color: _notifications.any((n) => n['is_read'] == false) ? const Color(0xFF1B5E20) : Colors.grey, fontSize: 12)),
                 ),
               ]),
             ),

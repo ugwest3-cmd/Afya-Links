@@ -182,6 +182,16 @@ export const getNotifications = async (req: AuthRequest, res: Response): Promise
     try {
         const userId = req.user?.id;
 
+        // Auto-delete read notifications that were marked as read more than 1 day ago
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        await supabase
+            .from('notifications')
+            .delete()
+            .eq('user_id', userId)
+            .eq('is_read', true)
+            .lt('read_at', oneDayAgo);
+
+        // Fetch remaining notifications
         const { data: notifications, error } = await supabase
             .from('notifications')
             .select('*')
@@ -191,6 +201,24 @@ export const getNotifications = async (req: AuthRequest, res: Response): Promise
         if (error) throw error;
 
         res.status(200).json({ success: true, notifications });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+};
+
+export const markNotificationsRead = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+
+        const { error } = await supabase
+            .from('notifications')
+            .update({ is_read: true, read_at: new Date().toISOString() })
+            .eq('user_id', userId)
+            .eq('is_read', false);
+
+        if (error) throw error;
+
+        res.status(200).json({ success: true, message: 'All notifications marked as read' });
     } catch (e: any) {
         res.status(500).json({ success: false, message: e.message });
     }
