@@ -6,6 +6,9 @@ const PESAPAL_CONSUMER_SECRET = process.env.PESAPAL_CONSUMER_SECRET || '';
 const PESAPAL_BASE_URL = process.env.PESAPAL_BASE_URL || 'https://cybqa.pesapal.com/pesapalv3';
 const APP_BASE_URL = process.env.APP_BASE_URL || 'https://afya-links-production.up.railway.app';
 
+// Log config on startup to help debug missing env vars
+console.log(`[Pesapal Config] URL: ${PESAPAL_BASE_URL} | Key set: ${!!PESAPAL_CONSUMER_KEY} | Secret set: ${!!PESAPAL_CONSUMER_SECRET}`);
+
 let pesapalToken: string | null = null;
 let tokenExpiry: number = 0;
 
@@ -39,8 +42,9 @@ export const getPesapalToken = async (): Promise<string> => {
 
         throw new Error('Could not get Pesapal token');
     } catch (error: any) {
-        console.error('Pesapal Auth Error:', error?.response?.data || error.message);
-        throw new Error('Pesapal Authentication Failed');
+        const detail = error?.response?.data ? JSON.stringify(error.response.data) : error.message;
+        console.error('Pesapal Auth Error:', detail);
+        throw new Error(`Pesapal Authentication Failed: ${detail}`);
     }
 };
 
@@ -76,8 +80,9 @@ export const getOrRegisterIPN = async (): Promise<string> => {
 
         return response.data.ipn_id;
     } catch (error: any) {
-        console.error('IPN Registration Error:', error?.response?.data || error.message);
-        throw new Error('Failed to register IPN');
+        const detail = error?.response?.data ? JSON.stringify(error.response.data) : error.message;
+        console.error('IPN Registration Error:', detail);
+        throw new Error(`Failed to register IPN: ${detail}`);
     }
 };
 
@@ -130,8 +135,9 @@ export const submitOrder = async (params: SubmitOrderParams) => {
 
         throw new Error('Invalid response from Pesapal SubmitOrder');
     } catch (error: any) {
-        console.error('Pesapal Submit Order Error:', error?.response?.data || error.message);
-        throw new Error('Failed to submit order to Pesapal');
+        const detail = error?.response?.data ? JSON.stringify(error.response.data) : error.message;
+        console.error('Pesapal Submit Order Error:', detail);
+        throw new Error(`Failed to submit order to Pesapal: ${detail}`);
     }
 };
 
