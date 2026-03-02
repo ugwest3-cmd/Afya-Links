@@ -65,20 +65,36 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
         }
 
         const subtotal = items.reduce((sum, item) => sum + (item.price_agreed * item.quantity), 0);
-        const platform_commission = subtotal * 0.06;
-        const delivery_fee = 5000;
-        const delivery_commission = delivery_fee * 0.1;
+
+        // Exact Ledger Logic based on Pesapal Escrow Spec
+        const pharmacy_commission = subtotal * 0.08; // 8% Pharmacy Commission
+        const pharmacy_net = subtotal - pharmacy_commission;
+
+        const delivery_fee = 10000; // Estimated baseline fee
+        const driver_commission = delivery_fee * 0.15; // 15% Driver Commission
+        const driver_net = delivery_fee - driver_commission;
+
+        const total_platform_revenue = pharmacy_commission + driver_commission;
+        const total_payable = subtotal + delivery_fee;
 
         const { data: order, error: orderError } = await supabase
             .from('orders')
             .insert([{
                 clinic_id: clinicId,
                 pharmacy_id,
-                status: 'PENDING',
+                status: 'AWAITING_PAYMENT',
+                payment_status: 'AWAITING_PAYMENT',
+                escrow_status: 'NOT_FUNDED',
                 subtotal,
-                platform_commission,
                 delivery_fee,
-                delivery_commission,
+                platform_commission: pharmacy_commission, // legacy mapping
+                delivery_commission: driver_commission,   // legacy mapping
+                pharmacy_commission,
+                driver_commission,
+                pharmacy_net,
+                driver_net,
+                total_platform_revenue,
+                total_payable,
                 delivery_address
             }])
             .select()
@@ -107,76 +123,121 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
 };
 
 
+// In-memory OTP store for Delivery Confirmation MVP
+const deliveryOtpStore = new Map<string, { otp: string, expiresAt: number }>();
+
+export const requestDeliveryOtp = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const clinicId = req.user?.id;
+        const orderId = req.params.id as string;
+
+        const { data: order, error } = await supabase
+            .from('orders')
+            .select('id, status, clinic:users!orders_clinic_id_fkey(phone)')
+            .eq('id', orderId)
+            .eq('clinic_id', clinicId)
+            .single();
+
+        if (error || !order) {
+            res.status(404).json({ success: false, message: 'Order not found' });
+            return;
+        }
+
+        // Generate OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = Date.now() + 10 * 60 * 1000; // 10 mins expiry
+
+        deliveryOtpStore.set(orderId, { otp, expiresAt });
+
+        const clinicPhone = Array.isArray(order.clinic) ? order.clinic[0]?.phone : (order.clinic as any)?.phone;
+
+        console.log(`[MVP DEV] 🚀 Delivery OTP for Order ${orderId} is: ${otp}`);
+
+        if (clinicPhone) {
+            const { sendSMS } = await import('../utils/sms');
+            await sendSMS([clinicPhone], `Your AfyaLinks Delivery Code for Order ${orderId.substring(0, 6)} is: ${otp}. Valid for 10 minutes.`);
+        }
+
+        res.status(200).json({ success: true, message: 'Delivery OTP sent successfully' });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 export const confirmDelivery = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const clinicId = req.user?.id;
-        const { id: orderId } = req.params;
-        const { order_code } = req.body;
+        const orderId = req.params.id as string;
+        const { otp } = req.body;
 
-        if (!order_code) {
-            res.status(400).json({ success: false, message: 'Order code is required for confirmation' });
+        if (!otp) {
+            res.status(400).json({ success: false, message: 'OTP is required for delivery confirmation' });
+            return;
+        }
+
+        // Verify OTP
+        const record = deliveryOtpStore.get(orderId);
+        if (!record || Date.now() > record.expiresAt) {
+            res.status(400).json({ success: false, message: 'OTP expired or not requested' });
+            return;
+        }
+        if (record.otp !== otp) {
+            res.status(400).json({ success: false, message: 'Invalid OTP' });
             return;
         }
 
         // Fetch order to verify
         const { data: order, error: orderError } = await supabase
             .from('orders')
-            .select('id, status, order_code, clinic_id')
+            .select('id, status, escrow_status')
             .eq('id', orderId)
             .eq('clinic_id', clinicId)
             .single();
 
         if (orderError || !order) {
-            res.status(404).json({ success: false, message: 'Order not found or access denied' });
+            res.status(404).json({ success: false, message: 'Order not found' });
             return;
         }
 
-        if (order.order_code !== order_code.toUpperCase()) {
-            res.status(400).json({ success: false, message: 'Invalid order code' });
+        if (order.status === 'COMPLETED' || order.status === 'DELIVERED') {
+            res.status(400).json({ success: false, message: 'Order is already completed' });
             return;
         }
 
-        if (order.status === 'DELIVERED') {
-            res.status(400).json({ success: false, message: 'Order is already delivered' });
+        if (order.escrow_status !== 'LOCKED') {
+            res.status(400).json({ success: false, message: 'Funds are not locked in escrow. Cannot release.' });
             return;
         }
 
-        // Update order status to DELIVERED
+        // Automatic Escrow Release (Atomic Update)
         const { error: updateError } = await supabase
             .from('orders')
-            .update({ status: 'DELIVERED' })
-            .eq('id', orderId);
+            .update({
+                status: 'COMPLETED',
+                escrow_status: 'RELEASED',
+                payout_status: 'INITIATED'
+            })
+            .eq('id', orderId)
+            .eq('escrow_status', 'LOCKED'); // Ensure atomic constraint
 
         if (updateError) throw updateError;
 
-        // Update deliveries table and send airtime rewards
+        // Clear OTP
+        deliveryOtpStore.delete(orderId);
+
+        // Update deliveries dropoff_time
         try {
-            const { data: delivery } = await supabase
+            await supabase
                 .from('deliveries')
-                .select('driver_id, driver:users(phone)')
-                .eq('order_id', orderId)
-                .single();
-
-            if (delivery && delivery.driver_id) {
-                await supabase
-                    .from('deliveries')
-                    .update({ dropoff_time: new Date() })
-                    .eq('order_id', orderId);
-
-                // Send Airtime reward (e.g. 1000 UGX for now)
-                const { sendAirtime } = await import('../utils/airtime');
-                const driverPhone = (delivery.driver as any)?.phone;
-                if (driverPhone) {
-                    await sendAirtime(driverPhone, 1000);
-                }
-            }
+                .update({ dropoff_time: new Date() })
+                .eq('order_id', orderId);
         } catch (e) {
-            console.error('Failed to process post-delivery rewards:', e);
+            console.error('Failed to update dropoff time:', e);
         }
 
         res.status(200).json({
             success: true,
-            message: 'Delivery confirmed successfully'
+            message: 'Delivery confirmed and escrow funds released successfully'
         });
 
     } catch (error: any) {

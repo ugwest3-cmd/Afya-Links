@@ -95,13 +95,32 @@ class ApiService {
     );
   }
 
+  /// POST /api/payments/initiate
+  static Future<http.Response> initiatePayment(String orderId) async {
+    final headers = await _authHeaders();
+    return http.post(
+      Uri.parse('$baseUrl/payments/initiate'),
+      headers: headers,
+      body: jsonEncode({'order_id': orderId}),
+    );
+  }
+
+  /// POST /api/clinics/orders/:id/request-otp
+  static Future<http.Response> requestDeliveryOtp(String orderId) async {
+    final headers = await _authHeaders();
+    return http.post(
+      Uri.parse('$baseUrl/clinics/orders/$orderId/request-otp'),
+      headers: headers,
+    );
+  }
+
   /// POST /api/clinics/orders/:id/confirm-delivery
-  static Future<http.Response> confirmDelivery(String orderId, String orderCode) async {
+  static Future<http.Response> confirmDelivery(String orderId, String otp) async {
     final headers = await _authHeaders();
     return http.post(
       Uri.parse('$baseUrl/clinics/orders/$orderId/confirm-delivery'),
       headers: headers,
-      body: jsonEncode({'order_code': orderCode}),
+      body: jsonEncode({'otp': otp}),
     );
   }
 

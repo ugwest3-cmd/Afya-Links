@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'api_service.dart';
 
 class OrdersScreen extends StatefulWidget {
@@ -19,8 +20,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
   static const _orange = Color(0xFFE65100);
   static const _red = Color(0xFFC62828);
 
-  final _filters = ['All', 'PENDING', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'];
-  final _filterLabels = {'PENDING': 'Pending', 'IN_TRANSIT': 'In Transit', 'DELIVERED': 'Delivered', 'CANCELLED': 'Cancelled'};
+  final _filters = ['All', 'AWAITING_PAYMENT', 'PAID_READY', 'OUT_FOR_DELIVERY', 'COMPLETED', 'CANCELLED'];
+  final _filterLabels = {
+    'AWAITING_PAYMENT': 'To Pay', 
+    'PAID_READY': 'Processing', 
+    'OUT_FOR_DELIVERY': 'In Transit', 
+    'COMPLETED': 'Completed', 
+    'CANCELLED': 'Cancelled',
+    'PENDING': 'Pending'
+  };
 
   @override
   void initState() {
@@ -60,9 +68,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   Color _statusColor(String status) {
     switch (status) {
-      case 'PENDING': return _orange;
-      case 'IN_TRANSIT': return _primary;
-      case 'DELIVERED': return _green;
+      case 'PENDING':
+      case 'AWAITING_PAYMENT': return _orange;
+      case 'PAID_READY':
+      case 'READY_FOR_PICKUP':
+      case 'IN_TRANSIT': 
+      case 'OUT_FOR_DELIVERY': return _primary;
+      case 'DELIVERED': 
+      case 'COMPLETED': return _green;
       case 'CANCELLED': return _red;
       default: return Colors.grey;
     }
@@ -72,7 +85,42 @@ class _OrdersScreenState extends State<OrdersScreen> {
     return _filterLabels[status] ?? status;
   }
 
-  void _showConfirmDelivery(BuildContext context, String orderId) {
+  Future<void> _handleConfirmDeliveryRequest(String orderId) async {
+    showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
+    try {
+      final res = await ApiService.requestDeliveryOtp(orderId);
+      if (mounted) Navigator.pop(context);
+      if (res.statusCode == 200) {
+        if (mounted) _showConfirmDeliveryDialog(context, orderId);
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${jsonDecode(res.body)['message']}'), backgroundColor: _red));
+      }
+    } catch (_) {
+      if (mounted) Navigator.pop(context);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Network error. Check connection.'), backgroundColor: _red));
+    }
+  }
+
+  Future<void> _handlePayNow(String orderId) async {
+    showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
+    try {
+      final res = await ApiService.initiatePayment(orderId);
+      if (mounted) Navigator.pop(context);
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final url = data['redirect_url'];
+        await launchUrl(Uri.parse(url), mode: LaunchMode.inAppWebView);
+        _loadOrders();
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Payment failed: ${jsonDecode(res.body)['message']}'), backgroundColor: _red));
+      }
+    } catch (_) {
+      if (mounted) Navigator.pop(context);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Network error. Check connection.'), backgroundColor: _red));
+    }
+  }
+
+  void _showConfirmDeliveryDialog(BuildContext context, String orderId) {
     final codeCtrl = TextEditingController();
     bool submitting = false;
 
@@ -101,11 +149,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 const SizedBox(height: 20),
                 TextField(
                   controller: codeCtrl,
-                  textCapitalization: TextCapitalization.characters,
+                  keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    labelText: 'Enter Order Code',
-                    hintText: 'e.g. ABC123',
-                    prefixIcon: const Icon(Icons.qr_code_rounded, color: _green),
+                    labelText: 'Enter OTP from SMS',
+                    hintText: 'e.g. 123456',
+                    prefixIcon: const Icon(Icons.password_rounded, color: _green),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -259,20 +307,37 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                     Text(o['items'] ?? '', style: const TextStyle(color: Colors.black87, fontSize: 13)),
                                     const SizedBox(height: 4),
                                     Text(o['date'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 11)),
-                                    if (status == 'IN_TRANSIT') ...[
+                                    if (status == 'AWAITING_PAYMENT') ...[
+                                      const SizedBox(height: 12),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton.icon(
+                                          icon: const Icon(Icons.payments_outlined, size: 16, color: Colors.white),
+                                          label: const Text('Pay via Pesapal', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: _orange,
+                                            padding: const EdgeInsets.symmetric(vertical: 10),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                            elevation: 0,
+                                          ),
+                                          onPressed: () => _handlePayNow(o['id'] ?? ''),
+                                        ),
+                                      ),
+                                    ],
+                                    if (status == 'OUT_FOR_DELIVERY' || status == 'IN_TRANSIT') ...[
                                       const SizedBox(height: 12),
                                       SizedBox(
                                         width: double.infinity,
                                         child: ElevatedButton.icon(
                                           icon: const Icon(Icons.check_circle_outline, size: 16, color: Colors.white),
-                                          label: const Text('Confirm Delivery', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                                          label: const Text('Confirm Delivery & Release Funds', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: _green,
                                             padding: const EdgeInsets.symmetric(vertical: 10),
                                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                             elevation: 0,
                                           ),
-                                          onPressed: () => _showConfirmDelivery(context, o['id'] ?? ''),
+                                          onPressed: () => _handleConfirmDeliveryRequest(o['id'] ?? ''),
                                         ),
                                       ),
                                     ],

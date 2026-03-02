@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth, requireRole, requireVerified } from '../middlewares/authMiddleware';
-import { getPriceOffers, createOrder, confirmDelivery, getDashboardStatsClinic, getMyOrders } from '../controllers/clinic.controller';
+import { getPriceOffers, createOrder, confirmDelivery, getDashboardStatsClinic, getMyOrders, requestDeliveryOtp } from '../controllers/clinic.controller';
 
 const router = Router();
 
@@ -25,6 +25,13 @@ router.post(
     requireRole(['CLINIC', 'ADMIN']),
     requireVerified,
     confirmDelivery
+);
+
+router.post(
+    '/orders/:id/request-otp',
+    requireRole(['CLINIC', 'ADMIN']),
+    requireVerified,
+    requestDeliveryOtp
 );
 
 router.get(
