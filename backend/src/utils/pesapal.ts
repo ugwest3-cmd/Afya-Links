@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 // Ensure these are in your .env
-const PESAPAL_CONSUMER_KEY = process.env.PESAPAL_CONSUMER_KEY || '';
-const PESAPAL_CONSUMER_SECRET = process.env.PESAPAL_CONSUMER_SECRET || '';
+const PESAPAL_CONSUMER_KEY = (process.env.PESAPAL_CONSUMER_KEY || '').trim();
+const PESAPAL_CONSUMER_SECRET = (process.env.PESAPAL_CONSUMER_SECRET || '').trim();
 const APP_BASE_URL = process.env.APP_BASE_URL || 'https://afya-links-production.up.railway.app';
 
 // Validate & sanitise PESAPAL_BASE_URL — fall back to sandbox if the env var is missing/invalid
