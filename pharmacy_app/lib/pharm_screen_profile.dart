@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'api_service.dart';
@@ -141,6 +144,155 @@ class _PharmProfileScreenState extends State<PharmProfileScreen> {
     }
   }
 
+  Future<void> _showUpdateLocationDialog() async {
+    final TextEditingController locCtrl = TextEditingController(text: _profileData?['address'] ?? '');
+    bool isSaving = false;
+    bool isFetchingLocation = false;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (context, setDialogState) {
+
+        Future<void> fetchGpsLocation() async {
+          setDialogState(() => isFetchingLocation = true);
+          try {
+            bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+            if (!serviceEnabled) {
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                const SnackBar(content: Text('Location services are disabled. Please enable GPS.'), backgroundColor: Colors.orange),
+              );
+              setDialogState(() => isFetchingLocation = false);
+              return;
+            }
+
+            LocationPermission permission = await Geolocator.checkPermission();
+            if (permission == LocationPermission.denied) {
+              permission = await Geolocator.requestPermission();
+            }
+            if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                const SnackBar(content: Text('Location permission denied. Please allow it in app settings.'), backgroundColor: Colors.red),
+              );
+              setDialogState(() => isFetchingLocation = false);
+              return;
+            }
+
+            final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+            final placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+            if (placemarks.isNotEmpty) {
+              final p = placemarks.first;
+              final parts = [p.street, p.subLocality, p.locality, p.country]
+                  .where((s) => s != null && s.isNotEmpty)
+                  .toList();
+              locCtrl.text = parts.join(', ');
+            }
+          } catch (e) {
+            ScaffoldMessenger.of(this.context).showSnackBar(
+              SnackBar(content: Text('Could not get location: $e'), backgroundColor: Colors.red),
+            );
+          } finally {
+            setDialogState(() => isFetchingLocation = false);
+          }
+        }
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Update Location', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: isFetchingLocation ? null : fetchGpsLocation,
+                  icon: isFetchingLocation
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.my_location, size: 18),
+                  label: Text(isFetchingLocation ? 'Detecting location...' : 'Use My Location 📍'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF1B5E20),
+                    side: const BorderSide(color: Color(0xFF1B5E20)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Row(children: [
+                Expanded(child: Divider()),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text('or type manually', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                ),
+                Expanded(child: Divider()),
+              ]),
+              const SizedBox(height: 12),
+              TextField(
+                controller: locCtrl,
+                decoration: InputDecoration(
+                  hintText: 'e.g. Kampala Road, Kampala',
+                  filled: true,
+                  fillColor: const Color(0xFFF0FAF0),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                  prefixIcon: const Icon(Icons.location_on, color: Color(0xFF1B5E20)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (isSaving) const Padding(padding: EdgeInsets.only(top: 8), child: CircularProgressIndicator()),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      if (locCtrl.text.trim().isEmpty) return;
+                      setDialogState(() => isSaving = true);
+                      try {
+                        final token = await SharedPreferences.getInstance().then((p) => p.getString('token'));
+                        final res = await http.put(
+                          Uri.parse('${ApiService.baseUrl}/users/profile/address'),
+                          headers: {
+                            'Content-Type': 'application/json',
+                            if (token != null) 'Authorization': 'Bearer $token',
+                          },
+                          body: jsonEncode({'address': locCtrl.text.trim()}),
+                        );
+                        if (res.statusCode == 200) {
+                          if (mounted) Navigator.pop(ctx);
+                          _fetchProfile();
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            const SnackBar(content: Text('Location updated successfully')),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            SnackBar(content: Text('Failed: ${jsonDecode(res.body)['message']}')),
+                          );
+                        }
+                      } catch (e) {
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          const SnackBar(content: Text('Network error')),
+                        );
+                      } finally {
+                        setDialogState(() => isSaving = false);
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1B5E20),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Save', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
   Future<void> _launchSupportEmail() async {
     final Uri emailLaunchUri = Uri(
       scheme: 'mailto',
@@ -255,6 +407,8 @@ class _PharmProfileScreenState extends State<PharmProfileScreen> {
             _SettingsRow(Icons.receipt_long_rounded, 'View Invoices', Colors.blueGrey, () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const PharmInvoicesScreen()));
             }),
+            const _Divider(),
+            _SettingsRow(Icons.edit_location_alt_rounded, 'Update Pharmacy Location', const Color(0xFF1B5E20), _showUpdateLocationDialog),
             const _Divider(),
             _SettingsRow(Icons.notifications_outlined, 'Notification Settings', Colors.blueGrey, _showNotificationSettings),
             const _Divider(),

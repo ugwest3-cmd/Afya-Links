@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
@@ -155,16 +157,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _showUpdateLocationDialog() async {
     final TextEditingController locCtrl = TextEditingController(text: _profileData?['address'] ?? '');
     bool isSaving = false;
+    bool isFetchingLocation = false;
 
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(builder: (context, setDialogState) {
+
+        Future<void> fetchGpsLocation() async {
+          setDialogState(() => isFetchingLocation = true);
+          try {
+            bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+            if (!serviceEnabled) {
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                const SnackBar(content: Text('Location services are disabled. Please enable GPS.'), backgroundColor: Colors.orange),
+              );
+              setDialogState(() => isFetchingLocation = false);
+              return;
+            }
+
+            LocationPermission permission = await Geolocator.checkPermission();
+            if (permission == LocationPermission.denied) {
+              permission = await Geolocator.requestPermission();
+            }
+            if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                const SnackBar(content: Text('Location permission denied. Please allow it in app settings.'), backgroundColor: Colors.red),
+              );
+              setDialogState(() => isFetchingLocation = false);
+              return;
+            }
+
+            final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+            final placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+            if (placemarks.isNotEmpty) {
+              final p = placemarks.first;
+              final parts = [p.street, p.subLocality, p.locality, p.country]
+                  .where((s) => s != null && s.isNotEmpty)
+                  .toList();
+              locCtrl.text = parts.join(', ');
+            }
+          } catch (e) {
+            ScaffoldMessenger.of(this.context).showSnackBar(
+              SnackBar(content: Text('Could not get location: $e'), backgroundColor: Colors.red),
+            );
+          } finally {
+            setDialogState(() => isFetchingLocation = false);
+          }
+        }
+
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Update Location', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // GPS auto-fill button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: isFetchingLocation ? null : fetchGpsLocation,
+                  icon: isFetchingLocation
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.my_location, size: 18),
+                  label: Text(isFetchingLocation ? 'Detecting location...' : 'Use My Location 📍'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0D6EFD),
+                    side: const BorderSide(color: Color(0xFF0D6EFD)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Row(children: [
+                Expanded(child: Divider()),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text('or type manually', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                ),
+                Expanded(child: Divider()),
+              ]),
+              const SizedBox(height: 12),
               TextField(
                 controller: locCtrl,
                 decoration: InputDecoration(
@@ -175,9 +248,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   prefixIcon: const Icon(Icons.location_on, color: Color(0xFF0D6EFD)),
                 ),
               ),
-              const SizedBox(height: 16),
-              // Simplified for now, GPS integration will be added on registration first
-              if (isSaving) const CircularProgressIndicator(),
+              const SizedBox(height: 8),
+              if (isSaving) const Padding(padding: EdgeInsets.only(top: 8), child: CircularProgressIndicator()),
             ],
           ),
           actions: [
@@ -205,7 +277,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                         if (res.statusCode == 200) {
                           if (mounted) Navigator.pop(ctx);
-                          _fetchProfile(); // refresh data
+                          _fetchProfile();
                           ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Location updated successfully')));
                         } else {
                           ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Failed: ${jsonDecode(res.body)['message']}')));
