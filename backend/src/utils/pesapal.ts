@@ -3,10 +3,22 @@ import axios from 'axios';
 // Ensure these are in your .env
 const PESAPAL_CONSUMER_KEY = process.env.PESAPAL_CONSUMER_KEY || '';
 const PESAPAL_CONSUMER_SECRET = process.env.PESAPAL_CONSUMER_SECRET || '';
-const PESAPAL_BASE_URL = process.env.PESAPAL_BASE_URL || 'https://cybqa.pesapal.com/pesapalv3';
 const APP_BASE_URL = process.env.APP_BASE_URL || 'https://afya-links-production.up.railway.app';
 
-// Log config on startup to help debug missing env vars
+// Validate & sanitise PESAPAL_BASE_URL — fall back to sandbox if the env var is missing/invalid
+const SANDBOX_URL = 'https://cybqa.pesapal.com/pesapalv3';
+const LIVE_URL = 'https://pay.pesapal.com/v3';
+const rawPesapalUrl = (process.env.PESAPAL_BASE_URL || '').trim();
+let PESAPAL_BASE_URL: string;
+try {
+    if (!rawPesapalUrl) throw new Error('not set');
+    new URL(rawPesapalUrl); // throws if invalid
+    PESAPAL_BASE_URL = rawPesapalUrl;
+} catch {
+    console.warn(`[Pesapal Config] PESAPAL_BASE_URL is "${rawPesapalUrl}" — INVALID or not set. Falling back to sandbox: ${SANDBOX_URL}`);
+    PESAPAL_BASE_URL = SANDBOX_URL;
+}
+
 console.log(`[Pesapal Config] URL: ${PESAPAL_BASE_URL} | Key set: ${!!PESAPAL_CONSUMER_KEY} | Secret set: ${!!PESAPAL_CONSUMER_SECRET}`);
 
 let pesapalToken: string | null = null;
