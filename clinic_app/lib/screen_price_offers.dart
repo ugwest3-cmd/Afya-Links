@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'payment_webview_sheet.dart';
 import 'api_service.dart';
 
 // ─── Step 3: Price Offers + Confirm Order ─────────────────────────────────────
@@ -165,9 +166,11 @@ class _PriceOffersScreenState extends State<PriceOffersScreen> {
         return;
       }
 
-      // ── Step 3: Open Pesapal checkout in an in-app browser ────────────────
-      final redirectUrl = Uri.parse(payBody['redirect_url'] as String);
-      await launchUrl(redirectUrl, mode: LaunchMode.inAppWebView);
+      // ── Step 3: Open Pesapal checkout in a modal bottom sheet ────────────
+      final redirectUrl = payBody['redirect_url'] as String;
+      if (mounted) {
+        await PaymentWebViewSheet.show(context, redirectUrl, title: 'Pesapal Payment');
+      }
 
       // After webview closes — go to Orders tab so they can track status
       if (mounted) {

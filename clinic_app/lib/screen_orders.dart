@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'payment_webview_sheet.dart';
 import 'api_service.dart';
 
 class OrdersScreen extends StatefulWidget {
@@ -109,7 +110,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final url = data['redirect_url'];
-        await launchUrl(Uri.parse(url), mode: LaunchMode.inAppWebView);
+        if (mounted) {
+          await PaymentWebViewSheet.show(context, url, title: 'Order Payment');
+        }
         _loadOrders();
       } else {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Payment failed: ${jsonDecode(res.body)['message']}'), backgroundColor: _red));
