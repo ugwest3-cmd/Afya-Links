@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
@@ -76,7 +77,12 @@ class ApiService {
     final token = await _getToken();
     final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/pharmacies/price-list'));
     if (token != null) request.headers['Authorization'] = 'Bearer $token';
-    request.files.add(http.MultipartFile.fromBytes('file', fileBytes, filename: fileName));
+    request.files.add(http.MultipartFile.fromBytes(
+      'file',
+      fileBytes,
+      filename: fileName,
+      contentType: MediaType('text', 'csv'),
+    ));
     final streamed = await request.send();
     return http.Response.fromStream(streamed);
   }
