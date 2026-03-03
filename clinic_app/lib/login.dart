@@ -323,6 +323,7 @@ class _LocationInputFieldState extends State<_LocationInputField> {
                 onChanged: (val) {
                   widget.controller.text = val;
                 },
+                decoration: InputDecoration(
                   hintText: 'Search district/city or enter address manually',
                   hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
                   prefixIcon: const Icon(Icons.location_city, color: Color(0xFF0D47A1), size: 20),
