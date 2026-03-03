@@ -4,6 +4,7 @@ import { supabase } from '../config/supabase';
 import { submitOrder, getTransactionStatus } from '../utils/pesapal';
 
 const APP_FRONTEND_URL = process.env.APP_FRONTEND_URL || 'https://afya-links-frontend.vercel.app'; // Replace with actual app redirect scheme or deep link
+const BACKEND_URL = process.env.APP_BASE_URL || 'https://afya-links-production.up.railway.app';
 
 export const initiatePayment = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -40,7 +41,7 @@ export const initiatePayment = async (req: AuthRequest, res: Response): Promise<
             id: order.id,
             amount: order.total_payable,
             description: `Afya Links Order ${order.id}`,
-            callback_url: `${APP_FRONTEND_URL}/payment-callback?order_id=${order.id}`,
+            callback_url: `${BACKEND_URL}/api/payments/callback?order_id=${order.id}`,
             billing_address: {
                 email_address: clinicUser?.email || 'test@pesapal.com',
                 phone_number: clinicUser?.phone || '0700000000',
