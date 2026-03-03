@@ -16,7 +16,12 @@ export const uploadPriceList = async (req: AuthRequest, res: Response): Promise<
             return;
         }
 
-        if (file.mimetype !== 'text/csv' && file.mimetype !== 'application/vnd.ms-excel') {
+        const isCsv = file.mimetype === 'text/csv' ||
+            file.mimetype === 'application/vnd.ms-excel' ||
+            file.mimetype === 'text/plain' ||
+            (file.mimetype === 'application/octet-stream' && file.originalname.endsWith('.csv'));
+
+        if (!isCsv) {
             res.status(400).json({ success: false, message: 'Only CSV files are allowed' });
             return;
         }
