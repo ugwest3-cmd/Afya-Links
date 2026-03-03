@@ -49,13 +49,15 @@ export const uploadPriceList = async (req: AuthRequest, res: Response): Promise<
         const stream = Readable.from(file.buffer);
 
         stream
-            .pipe(csvParser())
+            .pipe(csvParser({
+                mapHeaders: ({ header }) => header.trim().toLowerCase().replace(/\s+/g, '_')
+            }))
             .on('data', (data) => {
                 if (data.drug_name && data.price) {
                     results.push({
                         price_list_id: priceList.id,
                         sku: data.sku || null,
-                        drug_name: data.drug_name,
+                        drug_name: data.drug_name.trim(),
                         brand: data.brand || null,
                         strength: data.strength || null,
                         pack_size: data.pack_size || null,

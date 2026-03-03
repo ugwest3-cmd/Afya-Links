@@ -31,16 +31,21 @@ export const getPriceOffers = async (req: AuthRequest, res: Response): Promise<v
         const { data: priceItems, error: itemsError } = await supabase
             .from('price_items')
             .select('id, price_list_id, sku, drug_name, price, stock_qty, brand, strength, pack_size')
-            .in('price_list_id', priceListIds)
-            .in('drug_name', drug_names);
+            .in('price_list_id', priceListIds);
 
         if (itemsError) throw itemsError;
+
+        const normalizedRequestedNames = drug_names.map((n: string) => n.trim().toLowerCase());
 
         const offersByPharmacy: Record<string, any[]> = {};
 
         activeLists.forEach(list => {
-            offersByPharmacy[list.pharmacy_id] = priceItems
-                .filter(item => item.price_list_id === list.id)
+            offersByPharmacy[list.pharmacy_id] = (priceItems || [])
+                .filter(item => {
+                    const isFromThisList = item.price_list_id === list.id;
+                    const matchesName = normalizedRequestedNames.includes(item.drug_name.trim().toLowerCase());
+                    return isFromThisList && matchesName;
+                })
                 .map(item => ({
                     ...item,
                     valid_until: list.valid_until
