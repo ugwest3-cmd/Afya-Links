@@ -21,9 +21,9 @@ class _PharmOrdersScreenState extends State<PharmOrdersScreen> {
   static const _blue = Color(0xFF0D47A1);
   static const _red = Color(0xFFC62828);
 
-  final _filters = ['All', 'PAID_READY', 'ACCEPTED', 'PARTIAL', 'READY_FOR_PICKUP', 'REJECTED'];
+  final _filters = ['All', 'PAID', 'ACCEPTED', 'PARTIAL', 'READY_FOR_PICKUP', 'REJECTED'];
   final _filterLabels = {
-    'PAID_READY': 'New Orders',
+    'PAID': 'New Orders',
     'ACCEPTED': 'Accepted',
     'PARTIAL': 'Partial',
     'READY_FOR_PICKUP': 'Ready',
@@ -55,7 +55,7 @@ class _PharmOrdersScreenState extends State<PharmOrdersScreen> {
     {'id': 'ord-1045', 'display_id': '#1045', 'clinic': 'St. Luke\'s Clinic', 'items': [
       {'drug_name': 'Amoxicillin 500mg', 'quantity': 20},
       {'drug_name': 'Paracetamol 1g', 'quantity': 10},
-    ], 'status': 'PAID_READY', 'created_at': '5 min ago', 'urgent': true, 'delivery_address': 'Kampala Road, KLA'},
+    ], 'status': 'PAID', 'created_at': '5 min ago', 'urgent': true, 'delivery_address': 'Kampala Road, KLA'},
     {'id': 'ord-1044', 'display_id': '#1044', 'clinic': 'Hope Health Centre', 'items': [
       {'drug_name': 'Paracetamol 1g', 'quantity': 50},
     ], 'status': 'ACCEPTED', 'created_at': '1 hr ago', 'urgent': false, 'order_code': 'HX7K2P'},
@@ -71,7 +71,7 @@ class _PharmOrdersScreenState extends State<PharmOrdersScreen> {
 
   Color _statusColor(String s) {
     switch (s) {
-      case 'PAID_READY': return _orange;
+      case 'PAID': return _orange;
       case 'ACCEPTED': return _green;
       case 'PARTIAL': return _blue;
       case 'READY_FOR_PICKUP': return _primary;
@@ -83,7 +83,7 @@ class _PharmOrdersScreenState extends State<PharmOrdersScreen> {
   String _statusLabel(String s) => _filterLabels[s] ?? s;
 
   void _showRespondSheet(BuildContext context, Map<String, dynamic> order) {
-    if (order['status'] != 'PAID_READY') return;
+    if (order['status'] != 'PAID') return;
     final rejectCtrl = TextEditingController();
     String? _action;
 
@@ -269,7 +269,7 @@ class _PharmOrdersScreenState extends State<PharmOrdersScreen> {
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(16),
-                                border: status == 'PAID_READY' ? Border.all(color: _orange.withOpacity(0.4), width: 1.5) : null,
+                                border: status == 'PAID' ? Border.all(color: _orange.withOpacity(0.4), width: 1.5) : null,
                                 boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
                               ),
                               child: Padding(
@@ -329,8 +329,8 @@ class _PharmOrdersScreenState extends State<PharmOrdersScreen> {
                                     ),
                                   ],
 
-                                  // Action button for PAID_READY
-                                  if (status == 'PAID_READY') ...[
+                                  // Action button for PAID
+                                  if (status == 'PAID') ...[
                                     const SizedBox(height: 12),
                                     SizedBox(
                                       width: double.infinity,

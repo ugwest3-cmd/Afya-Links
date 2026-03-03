@@ -20,10 +20,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
   static const _orange = Color(0xFFE65100);
   static const _red = Color(0xFFC62828);
 
-  final _filters = ['All', 'AWAITING_PAYMENT', 'PAID_READY', 'OUT_FOR_DELIVERY', 'COMPLETED', 'CANCELLED'];
+  final _filters = ['All', 'AWAITING_PAYMENT', 'PAID', 'OUT_FOR_DELIVERY', 'COMPLETED', 'CANCELLED'];
   final _filterLabels = {
     'AWAITING_PAYMENT': 'To Pay', 
-    'PAID_READY': 'Processing', 
+    'PAID': 'Processing', 
     'OUT_FOR_DELIVERY': 'In Transit', 
     'COMPLETED': 'Completed', 
     'CANCELLED': 'Cancelled',
@@ -70,7 +70,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     switch (status) {
       case 'PENDING':
       case 'AWAITING_PAYMENT': return _orange;
-      case 'PAID_READY':
+      case 'PAID':
       case 'READY_FOR_PICKUP':
       case 'IN_TRANSIT': 
       case 'OUT_FOR_DELIVERY': return _primary;

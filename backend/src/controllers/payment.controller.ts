@@ -120,9 +120,8 @@ export const pesapalWebhook = async (req: Request, res: Response): Promise<void>
                     // Correct payment — update order
                     await supabase.from('orders')
                         .update({
-                            status: 'PAID_READY',
-                            payment_status: 'VERIFIED',
-                            escrow_status: 'LOCKED'
+                            status: 'PAID',
+                            payment_status: 'VERIFIED'
                         })
                         .eq('id', OrderMerchantReference);
 

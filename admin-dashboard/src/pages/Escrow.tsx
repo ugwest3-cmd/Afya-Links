@@ -2,14 +2,15 @@ import { useState, useEffect, useMemo } from 'react';
 import { DollarSign, RefreshCw, Search, ShieldAlert, CheckCircle2, Lock } from 'lucide-react';
 import api from '../utils/api';
 
-const ESCROW_BADGE: Record<string, string> = {
-    NOT_FUNDED: 'badge-warning',
-    LOCKED: 'badge-info',
-    RELEASED: 'badge-success',
-    RETURNED: 'badge-secondary',
+const STATUS_BADGE: Record<string, string> = {
+    AWAITING_PAYMENT: 'badge-warning',
+    PAID: 'badge-info',
+    COMPLETED: 'badge-success',
+    REFUNDED: 'badge-secondary',
+    DISPUTE: 'badge-danger',
 };
 
-const FILTER_TABS = ['All', 'LOCKED', 'RELEASED', 'NOT_FUNDED', 'RETURNED'];
+const FILTER_TABS = ['All', 'PAID', 'COMPLETED', 'AWAITING_PAYMENT', 'REFUNDED'];
 
 export const Escrow = () => {
     const [ledger, setLedger] = useState<any[]>([]);
@@ -58,7 +59,7 @@ export const Escrow = () => {
 
     const filtered = useMemo(() => {
         return ledger.filter(o => {
-            const statusMatch = activeFilter === 'All' || o.escrow_status === activeFilter;
+            const statusMatch = activeFilter === 'All' || o.status === activeFilter;
             const searchMatch = !search || o.order_code?.toLowerCase().includes(search.toLowerCase()) || o.id?.includes(search) || o.clinic?.name?.toLowerCase().includes(search.toLowerCase());
             return statusMatch && searchMatch;
         });
@@ -144,8 +145,8 @@ export const Escrow = () => {
                         <tr>
                             <th>Order Code</th>
                             <th>Clinic / Pharmacy</th>
-                            <th>Escrow / Order Status</th>
-                            <th>Total Locked</th>
+                            <th>Order Status</th>
+                            <th>Total Amount</th>
                             <th>Pharmacy Net / Driver Net</th>
                             <th>Actions (Disputes)</th>
                         </tr>
@@ -171,8 +172,7 @@ export const Escrow = () => {
                                 </td>
                                 <td>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
-                                        <span className={`badge ${ESCROW_BADGE[item.escrow_status] ?? 'badge-secondary'}`}>{item.escrow_status}</span>
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{item.status}</span>
+                                        <span className={`badge ${STATUS_BADGE[item.status] ?? 'badge-secondary'}`}>{item.status}</span>
                                     </div>
                                 </td>
                                 <td style={{ fontWeight: 600 }}>UGX {Number(item.total_payable || 0).toLocaleString()}</td>
@@ -181,7 +181,7 @@ export const Escrow = () => {
                                     <div style={{ color: 'var(--status-info)', fontSize: '0.75rem' }}>UGX {Number(item.driver_net || 0).toLocaleString()}</div>
                                 </td>
                                 <td>
-                                    {item.status === 'DISPUTE' && item.escrow_status === 'LOCKED' ? (
+                                    {item.status === 'DISPUTE' ? (
                                         <div style={{ display: 'flex', gap: 6 }}>
                                             <button
                                                 className="btn btn-primary"

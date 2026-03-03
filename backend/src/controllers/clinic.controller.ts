@@ -84,7 +84,6 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
                 pharmacy_id,
                 status: 'AWAITING_PAYMENT',
                 payment_status: 'AWAITING_PAYMENT',
-                escrow_status: 'NOT_FUNDED',
                 subtotal,
                 delivery_fee,
                 platform_commission: pharmacy_commission, // legacy mapping
@@ -198,7 +197,7 @@ export const confirmDelivery = async (req: AuthRequest, res: Response): Promise<
         // Fetch order to verify
         const { data: order, error: orderError } = await supabase
             .from('orders')
-            .select('id, status, escrow_status')
+            .select('id, status')
             .eq('id', orderId)
             .eq('clinic_id', clinicId)
             .single();
@@ -213,21 +212,14 @@ export const confirmDelivery = async (req: AuthRequest, res: Response): Promise<
             return;
         }
 
-        if (order.escrow_status !== 'LOCKED') {
-            res.status(400).json({ success: false, message: 'Funds are not locked in escrow. Cannot release.' });
-            return;
-        }
-
-        // Automatic Escrow Release (Atomic Update)
+        // Atomic Status Update
         const { error: updateError } = await supabase
             .from('orders')
             .update({
                 status: 'COMPLETED',
-                escrow_status: 'RELEASED',
                 payout_status: 'INITIATED'
             })
-            .eq('id', orderId)
-            .eq('escrow_status', 'LOCKED'); // Ensure atomic constraint
+            .eq('id', orderId);
 
         if (updateError) throw updateError;
 

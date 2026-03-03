@@ -286,7 +286,6 @@ export const getEscrowLedger = async (req: AuthRequest, res: Response): Promise<
                 id, 
                 order_code,
                 status, 
-                escrow_status, 
                 payment_status,
                 total_payable,
                 pharmacy_net,
@@ -301,9 +300,9 @@ export const getEscrowLedger = async (req: AuthRequest, res: Response): Promise<
         if (error) throw error;
 
         // Calculate aggregates
-        const totalLocked = orders.filter(o => o.escrow_status === 'LOCKED').reduce((sum, o) => sum + (Number(o.total_payable) || 0), 0);
-        const totalReleased = orders.filter(o => o.escrow_status === 'RELEASED').reduce((sum, o) => sum + (Number(o.total_payable) || 0), 0);
-        const platformRevenue = orders.filter(o => o.escrow_status === 'RELEASED').reduce((sum, o) => sum + (Number(o.total_platform_revenue) || 0), 0);
+        const totalLocked = orders.filter(o => o.status === 'PAID').reduce((sum, o) => sum + (Number(o.total_payable) || 0), 0);
+        const totalReleased = orders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + (Number(o.total_payable) || 0), 0);
+        const platformRevenue = orders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + (Number(o.total_platform_revenue) || 0), 0);
 
         res.status(200).json({
             success: true,
@@ -332,7 +331,7 @@ export const resolveDispute = async (req: AuthRequest, res: Response): Promise<v
 
         const { data: order, error } = await supabase
             .from('orders')
-            .select('id, escrow_status, status')
+            .select('id, status')
             .eq('id', order_id)
             .single();
 
@@ -341,21 +340,19 @@ export const resolveDispute = async (req: AuthRequest, res: Response): Promise<v
             return;
         }
 
-        if (order.escrow_status !== 'LOCKED') {
-            res.status(400).json({ success: false, message: 'Funds are not locked in escrow.' });
+        if (order.status === 'COMPLETED' || order.status === 'REFUNDED') {
+            res.status(400).json({ success: false, message: 'Order is already resolved.' });
             return;
         }
 
         if (resolution_action === 'RELEASE_TO_PHARMACY') {
             await supabase.from('orders').update({
                 status: 'COMPLETED',
-                escrow_status: 'RELEASED',
                 payout_status: 'INITIATED'
             }).eq('id', order_id);
         } else if (resolution_action === 'REFUND_TO_CLINIC') {
             await supabase.from('orders').update({
-                status: 'REFUNDED',
-                escrow_status: 'RETURNED'
+                status: 'REFUNDED'
             }).eq('id', order_id);
         }
 
