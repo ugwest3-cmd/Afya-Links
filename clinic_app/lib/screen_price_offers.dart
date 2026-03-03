@@ -282,10 +282,27 @@ class _PriceOffersScreenState extends State<PriceOffersScreen> {
                     children: [
                       ...widget.pharmacies.map((pharmacy) {
                         final pid = pharmacy['id'] as String;
-                        final offers = _offersByPharmacy[pid] ?? [];
+                        final offers = _offersByPharmacy[pid];
                         final isSelected = _selectedPharmacyId == pid;
                         final total = _totalForPharmacy(pid);
                         
+                        if (offers == null) {
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 14),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16),
+                                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)]),
+                            child: Row(children: [
+                              const Icon(Icons.local_pharmacy_outlined, color: Colors.grey),
+                              const SizedBox(width: 10),
+                              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text(pharmacy['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                const Text('No price list has been uploaded by this pharmacy', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                              ])),
+                            ]),
+                          );
+                        }
+
                         // Check if all requested drugs are present in the offers
                         final drugNamesInOffers = offers.map((o) => (o['drug_name'] as String).toLowerCase()).toSet();
                         final missingDrugs = widget.drugs.where((d) => !drugNamesInOffers.contains((d['drug_name'] as String).toLowerCase())).toList();
@@ -298,11 +315,11 @@ class _PriceOffersScreenState extends State<PriceOffersScreen> {
                             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16),
                                 boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)]),
                             child: Row(children: [
-                              const Icon(Icons.local_pharmacy_outlined, color: Colors.grey),
+                              const Icon(Icons.local_pharmacy_outlined, color: _orange),
                               const SizedBox(width: 10),
                               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Text(pharmacy['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                const Text('No price list has been uploaded by this pharmacy', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                                const Text('This pharmacy has a price list, but does not have these medications', style: TextStyle(color: _orange, fontSize: 12)),
                               ])),
                             ]),
                           );
