@@ -285,6 +285,11 @@ class _PriceOffersScreenState extends State<PriceOffersScreen> {
                         final offers = _offersByPharmacy[pid] ?? [];
                         final isSelected = _selectedPharmacyId == pid;
                         final total = _totalForPharmacy(pid);
+                        
+                        // Check if all requested drugs are present in the offers
+                        final drugNamesInOffers = offers.map((o) => (o['drug_name'] as String).toLowerCase()).toSet();
+                        final missingDrugs = widget.drugs.where((d) => !drugNamesInOffers.contains((d['drug_name'] as String).toLowerCase())).toList();
+                        final allDrugsFound = missingDrugs.isEmpty;
 
                         if (offers.isEmpty) {
                           return Container(
@@ -297,7 +302,7 @@ class _PriceOffersScreenState extends State<PriceOffersScreen> {
                               const SizedBox(width: 10),
                               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Text(pharmacy['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                const Text('No price list available', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                                const Text('No price list has been uploaded by this pharmacy', style: TextStyle(color: Colors.grey, fontSize: 12)),
                               ])),
                             ]),
                           );
@@ -336,19 +341,34 @@ class _PriceOffersScreenState extends State<PriceOffersScreen> {
                                       Text(pharmacy['address'] ?? '',
                                           style: TextStyle(fontSize: 11, color: isSelected ? Colors.white70 : Colors.grey)),
                                     ])),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: isSelected ? Colors.white.withOpacity(0.2) : _primary.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
+                                    if (allDrugsFound)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: isSelected ? Colors.white.withOpacity(0.2) : _primary.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text('UGX ${total.toStringAsFixed(0)}',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: isSelected ? Colors.white : _primary,
+                                              fontSize: 12,
+                                            )),
+                                      )
+                                    else
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: _orange.withOpacity(isSelected ? 0.3 : 0.1),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text('Items Missing',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: isSelected ? Colors.white : _orange,
+                                              fontSize: 10,
+                                            )),
                                       ),
-                                      child: Text('UGX ${total.toStringAsFixed(0)}',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: isSelected ? Colors.white : _primary,
-                                            fontSize: 12,
-                                          )),
-                                    ),
                                   ]),
                                 ),
                                 // Drug items with prices
@@ -394,14 +414,15 @@ class _PriceOffersScreenState extends State<PriceOffersScreen> {
                                   Container(
                                     width: double.infinity,
                                     padding: const EdgeInsets.symmetric(vertical: 8),
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFFE8F5E9),
-                                      borderRadius: BorderRadius.vertical(bottom: Radius.circular(14)),
+                                    decoration: BoxDecoration(
+                                      color: allDrugsFound ? const Color(0xFFE8F5E9) : const Color(0xFFFFF3E0),
+                                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
                                     ),
-                                    child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                      Icon(Icons.check_circle, color: _green, size: 16),
-                                      SizedBox(width: 6),
-                                      Text('Selected — tap Confirm Order below', style: TextStyle(color: _green, fontWeight: FontWeight.bold, fontSize: 12)),
+                                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                      Icon(allDrugsFound ? Icons.check_circle : Icons.info_outline, color: allDrugsFound ? _green : _orange, size: 16),
+                                      const SizedBox(width: 6),
+                                      Text(allDrugsFound ? 'Selected — tap Confirm Order below' : 'Some items are missing from this pharmacy', 
+                                          style: TextStyle(color: allDrugsFound ? _green : _orange, fontWeight: FontWeight.bold, fontSize: 12)),
                                     ]),
                                   ),
                               ],
