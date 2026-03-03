@@ -310,23 +310,19 @@ class _LocationInputFieldState extends State<_LocationInputField> {
           },
           onSelected: (s) => widget.controller.text = s,
           fieldViewBuilder: (ctx, ctrl, focusNode, onSubmit) {
-            // Keep controller in sync
+            // Keep internal controller in sync with external controller ONCE
             if (widget.controller.text != ctrl.text && !focusNode.hasFocus) {
                ctrl.text = widget.controller.text;
             }
-            ctrl.addListener(() {
-              if (widget.controller.text != ctrl.text) widget.controller.text = ctrl.text;
-            });
-            widget.controller.addListener(() {
-               if (widget.controller.text != ctrl.text) ctrl.text = widget.controller.text;
-            });
 
             return Container(
               decoration: BoxDecoration(color: const Color(0xFFF0F4FF), borderRadius: BorderRadius.circular(12)),
               child: TextField(
                 controller: ctrl,
                 focusNode: focusNode,
-                decoration: InputDecoration(
+                onChanged: (val) {
+                  widget.controller.text = val;
+                },
                   hintText: 'Search district/city or enter address manually',
                   hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
                   prefixIcon: const Icon(Icons.location_city, color: Color(0xFF0D47A1), size: 20),

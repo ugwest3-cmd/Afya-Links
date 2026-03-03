@@ -22,6 +22,7 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
   List<String> _selectedPharmacyIds = [];
   bool _loadingPharmacies = true;
   String _deliveryAddress = '';
+  final TextEditingController _addressCtrl = TextEditingController();
 
   static const _primary = Color(0xFF0D47A1);
   static const _green = Color(0xFF2E7D32);
@@ -33,6 +34,15 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
     _fetchProfile();
   }
 
+  @override
+  void dispose() {
+    _addressCtrl.dispose();
+    for (var drug in _drugs) {
+      drug.dispose();
+    }
+    super.dispose();
+  }
+
   Future<void> _fetchProfile() async {
     try {
       final res = await ApiService.getProfileStatus();
@@ -41,6 +51,7 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
         if (data != null && data['address'] != null) {
           setState(() {
             _deliveryAddress = data['address'];
+            _addressCtrl.text = _deliveryAddress;
           });
         }
       }
@@ -87,7 +98,7 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
 
   bool get _canProceed {
     final hasValidDrug = _drugs.any((d) => d.nameCtrl.text.trim().isNotEmpty && d.quantityCtrl.text.trim().isNotEmpty);
-    return hasValidDrug && _selectedPharmacyIds.isNotEmpty && _deliveryAddress.isNotEmpty;
+    return hasValidDrug && _selectedPharmacyIds.isNotEmpty && _addressCtrl.text.isNotEmpty;
   }
 
   void _goToOffers() {
@@ -103,7 +114,7 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
           drugs: validDrugs,
           pharmacyIds: _selectedPharmacyIds,
           pharmacies: _pharmacies.where((p) => _selectedPharmacyIds.contains(p['id'])).toList(),
-          deliveryAddress: _deliveryAddress,
+          deliveryAddress: _addressCtrl.text,
           onOrderPlaced: widget.onOrderPlaced,
         ),
       ),
@@ -134,7 +145,10 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
                 item: e.value,
                 index: e.key,
                 canRemove: _drugs.length > 1,
-                onRemove: () => setState(() => _drugs.removeAt(e.key)),
+                onRemove: () {
+                  e.value.dispose();
+                  setState(() => _drugs.removeAt(e.key));
+                },
                 onChanged: () => setState(() {}),
               )),
           TextButton.icon(
@@ -230,7 +244,7 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: TextField(
-              controller: TextEditingController(text: _deliveryAddress),
+              controller: _addressCtrl,
               readOnly: true,
               decoration: InputDecoration(
                 hintText: 'Loading address...',
@@ -291,6 +305,11 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
 class _DrugItem {
   final nameCtrl = TextEditingController();
   final quantityCtrl = TextEditingController();
+
+  void dispose() {
+    nameCtrl.dispose();
+    quantityCtrl.dispose();
+  }
 }
 
 class _DrugRow extends StatelessWidget {
@@ -348,14 +367,23 @@ class _DrugRow extends StatelessWidget {
               if (textEditingValue.text.isEmpty) return const Iterable<String>.empty();
               return _suggestions.where((s) => s.toLowerCase().contains(textEditingValue.text.toLowerCase()));
             },
-            onSelected: (s) { item.nameCtrl.text = s; onChanged(); },
+            onSelected: (s) {
+              item.nameCtrl.text = s;
+              onChanged();
+            },
             fieldViewBuilder: (ctx, ctrl, focusNode, onSubmit) {
-              // Sync the autocomplete's internal controller with our item controller
-              ctrl.text = item.nameCtrl.text;
-              ctrl.addListener(() { item.nameCtrl.text = ctrl.text; onChanged(); });
+              // Sync the autocomplete's internal controller with our item controller ONCE
+              if (ctrl.text != item.nameCtrl.text) {
+                ctrl.text = item.nameCtrl.text;
+              }
+
               return TextField(
                 controller: ctrl,
                 focusNode: focusNode,
+                onChanged: (val) {
+                  item.nameCtrl.text = val;
+                  onChanged();
+                },
                 decoration: InputDecoration(
                   hintText: 'Search drug name...',
                   hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
@@ -408,6 +436,7 @@ class _DrugRow extends StatelessWidget {
     );
   }
 }
+
 
 // ─── Shared Header Card ───────────────────────────────────────────────────────
 
