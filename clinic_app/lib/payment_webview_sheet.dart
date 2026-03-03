@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -95,12 +97,21 @@ class _PaymentWebViewSheetState extends State<PaymentWebViewSheet> {
           Expanded(
             child: Stack(
               children: [
-                WebViewWidget(controller: _controller),
+                WebViewWidget(
+                  controller: _controller,
+                  gestureRecognizers: {
+                    Factory<VerticalDragGestureRecognizer>(() => VerticalDragGestureRecognizer()),
+                    Factory<LongPressGestureRecognizer>(() => LongPressGestureRecognizer()),
+                  },
+                ),
                 if (_loading)
                   const Center(child: CircularProgressIndicator()),
               ],
             ),
           ),
+          
+          // Add extra space for the keyboard if it overlaps
+          SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
         ],
       ),
     );
