@@ -211,16 +211,44 @@ export const pesapalWebhook = async (req: Request, res: Response): Promise<void>
 export const pesapalCallback = async (req: Request, res: Response): Promise<void> => {
     const { order_id, OrderTrackingId, OrderMerchantReference } = req.query;
 
-    const trackingId = OrderTrackingId as string | undefined;
+    let trackingId = OrderTrackingId as string | undefined;
     const merchantRef = (OrderMerchantReference as string) || (order_id as string);
 
-    // Best-effort: try to confirm payment if we have enough info
+    console.log(`[Callback] Received: order_id=${order_id}, OrderTrackingId=${OrderTrackingId}, OrderMerchantReference=${OrderMerchantReference}`);
+
+    // ── KEY FIX ──────────────────────────────────────────────────────────────
+    // Pesapal sandbox often redirects WITHOUT OrderTrackingId in the URL.
+    // If it's missing, look it up from the pesapal_transactions table using order_id.
+    if (!trackingId && merchantRef) {
+        try {
+            const { data: txRow } = await supabase
+                .from('pesapal_transactions')
+                .select('tracking_id')
+                .eq('order_id', merchantRef)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+
+            if (txRow?.tracking_id) {
+                trackingId = txRow.tracking_id;
+                console.log(`[Callback] Resolved tracking ID from DB: ${trackingId}`);
+            } else {
+                console.warn(`[Callback] No tracking ID found in DB for order ${merchantRef}`);
+            }
+        } catch (err) {
+            console.error('[Callback] DB lookup for tracking ID failed:', err);
+        }
+    }
+
+    // Confirm payment with the resolved tracking ID
     if (trackingId && merchantRef) {
         try {
             await confirmPaymentByTrackingId(trackingId, merchantRef);
         } catch (err) {
             console.error('[Callback] Could not confirm payment status:', err);
         }
+    } else {
+        console.error(`[Callback] Cannot confirm — missing trackingId or merchantRef. trackingId=${trackingId}, merchantRef=${merchantRef}`);
     }
 
     res.send(`
@@ -236,6 +264,7 @@ export const pesapalCallback = async (req: Request, res: Response): Promise<void
         </html>
     `);
 };
+
 
 /**
  * Admin: Manually confirm a stuck order using its Pesapal tracking ID.
