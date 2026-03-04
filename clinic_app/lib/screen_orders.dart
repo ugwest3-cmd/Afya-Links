@@ -404,7 +404,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                         ),
                                       ),
                                     ],
-                                    if (status == 'OUT_FOR_DELIVERY' || status == 'IN_TRANSIT') ...[
+                                    if (status == 'OUT_FOR_DELIVERY' || status == 'IN_TRANSIT' || status == 'READY_FOR_PICKUP' || status == 'ASSIGNED') ...[
                                       const SizedBox(height: 12),
                                       SizedBox(
                                         width: double.infinity,
