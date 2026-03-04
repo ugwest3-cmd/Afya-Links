@@ -74,7 +74,7 @@ class ApiService {
   /// GET clinic's own orders
   static Future<http.Response> getMyOrders() async {
     final headers = await _authHeaders();
-    return http.get(Uri.parse('$baseUrl/users/my-orders'), headers: headers);
+    return http.get(Uri.parse('$baseUrl/clinics/my-orders'), headers: headers);
   }
 
   /// POST /api/clinics/orders — create a new order

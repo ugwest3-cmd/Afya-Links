@@ -282,16 +282,20 @@ export const getInboxOrders = async (req: AuthRequest, res: Response): Promise<v
         const { data: orders, error } = await supabase
             .from('orders')
             .select(`
-                *,
-                clinic:users!orders_clinic_id_fkey(name),
-                items:order_items(*)
+                id, status, payment_status, subtotal, delivery_fee, total_payable,
+                order_code, delivery_address, created_at, clinic_id, pharmacy_id,
+                clinic:users!clinic_id(name),
+                items:order_items(id, drug_name, quantity, price_agreed)
             `)
             .eq('pharmacy_id', pharmacyId)
             .neq('status', 'AWAITING_PAYMENT')
             .order('created_at', { ascending: false })
             .limit(Number(limit));
 
-        if (error) throw error;
+        if (error) {
+            console.error('[getInboxOrders] Supabase error:', error);
+            throw error;
+        }
 
         res.status(200).json({ success: true, orders });
     } catch (error: any) {

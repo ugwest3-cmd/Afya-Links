@@ -294,15 +294,19 @@ export const getMyOrders = async (req: AuthRequest, res: Response): Promise<void
         const { data: orders, error } = await supabase
             .from('orders')
             .select(`
-                *,
-                pharmacy:users!orders_pharmacy_id_fkey(name),
-                items:order_items(*)
+                id, status, payment_status, subtotal, delivery_fee, total_payable,
+                order_code, delivery_address, created_at, clinic_id, pharmacy_id,
+                pharmacy:users!pharmacy_id(name),
+                items:order_items(id, drug_name, quantity, price_agreed)
             `)
             .eq('clinic_id', clinicId)
             .order('created_at', { ascending: false })
             .limit(Number(limit));
 
-        if (error) throw error;
+        if (error) {
+            console.error('[getMyOrders] Supabase error:', error);
+            throw error;
+        }
 
         res.status(200).json({ success: true, orders });
     } catch (error: any) {
