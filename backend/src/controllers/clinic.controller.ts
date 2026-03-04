@@ -291,24 +291,38 @@ export const getMyOrders = async (req: AuthRequest, res: Response): Promise<void
         const clinicId = req.user?.id;
         const { limit = 20 } = req.query;
 
+        // Step 1: Fetch orders with no joins
         const { data: orders, error } = await supabase
             .from('orders')
-            .select(`
-                id, status, payment_status, subtotal, delivery_fee, total_payable,
-                order_code, delivery_address, created_at, clinic_id, pharmacy_id,
-                pharmacy:users!pharmacy_id(name),
-                items:order_items(id, drug_name, quantity, price_agreed)
-            `)
+            .select('id, status, payment_status, subtotal, delivery_fee, total_payable, order_code, delivery_address, created_at, clinic_id, pharmacy_id')
             .eq('clinic_id', clinicId)
             .order('created_at', { ascending: false })
             .limit(Number(limit));
 
         if (error) {
-            console.error('[getMyOrders] Supabase error:', error);
+            console.error('[getMyOrders] Orders query error:', error);
             throw error;
         }
 
-        res.status(200).json({ success: true, orders });
+        if (!orders || orders.length === 0) {
+            res.status(200).json({ success: true, orders: [] });
+            return;
+        }
+
+        // Step 2: Fetch items for all returned orders
+        const orderIds = orders.map((o: any) => o.id);
+        const { data: allItems } = await supabase
+            .from('order_items')
+            .select('id, order_id, drug_name, quantity, price_agreed')
+            .in('order_id', orderIds);
+
+        const ordersWithItems = orders.map((o: any) => ({
+            ...o,
+            items: (allItems || []).filter((i: any) => i.order_id === o.id),
+        }));
+
+        console.log(`[getMyOrders] Returning ${ordersWithItems.length} orders for clinic ${clinicId}`);
+        res.status(200).json({ success: true, orders: ordersWithItems });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
     }

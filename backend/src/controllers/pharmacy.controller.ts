@@ -279,29 +279,47 @@ export const getInboxOrders = async (req: AuthRequest, res: Response): Promise<v
         const pharmacyId = req.user?.id;
         const { limit = 20 } = req.query;
 
+        // Step 1: Fetch orders (no joins — avoids FK/RLS issues)
         const { data: orders, error } = await supabase
             .from('orders')
-            .select(`
-                id, status, payment_status, subtotal, delivery_fee, total_payable,
-                order_code, delivery_address, created_at, clinic_id, pharmacy_id,
-                clinic:users!clinic_id(name),
-                items:order_items(id, drug_name, quantity, price_agreed)
-            `)
+            .select('id, status, payment_status, subtotal, delivery_fee, total_payable, order_code, delivery_address, created_at, clinic_id, pharmacy_id, urgent')
             .eq('pharmacy_id', pharmacyId)
             .neq('status', 'AWAITING_PAYMENT')
             .order('created_at', { ascending: false })
             .limit(Number(limit));
 
         if (error) {
-            console.error('[getInboxOrders] Supabase error:', error);
+            console.error('[getInboxOrders] Orders query error:', error);
             throw error;
         }
 
-        res.status(200).json({ success: true, orders });
+        if (!orders || orders.length === 0) {
+            res.status(200).json({ success: true, orders: [] });
+            return;
+        }
+
+        // Step 2: Fetch items for all returned orders
+        const orderIds = orders.map((o: any) => o.id);
+        const { data: allItems } = await supabase
+            .from('order_items')
+            .select('id, order_id, drug_name, quantity, price_agreed')
+            .in('order_id', orderIds);
+
+        // Attach items to each order
+        const ordersWithItems = orders.map((o: any) => ({
+            ...o,
+            items: (allItems || []).filter((i: any) => i.order_id === o.id),
+            clinic: null // populated separately if needed
+        }));
+
+
+        console.log(`[getInboxOrders] Returning ${ordersWithItems.length} orders for pharmacy ${pharmacyId}`);
+        res.status(200).json({ success: true, orders: ordersWithItems });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
 
 export const getInvoices = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
