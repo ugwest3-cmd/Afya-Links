@@ -21,15 +21,20 @@ class _OrdersScreenState extends State<OrdersScreen> {
   static const _orange = Color(0xFFE65100);
   static const _red = Color(0xFFC62828);
 
-  final _filters = ['All', 'AWAITING_PAYMENT', 'PAID', 'OUT_FOR_DELIVERY', 'COMPLETED', 'CANCELLED'];
+  // All statuses that belong to each filter tab
+  static const _processingStatuses  = ['PAID', 'ACCEPTED', 'PARTIAL', 'READY_FOR_PICKUP'];
+  static const _inTransitStatuses   = ['ASSIGNED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'];
+  static const _completedStatuses   = ['DELIVERED', 'COMPLETED', 'DELIVERY_CONFIRMED'];
+
+  final _filters = ['All', 'AWAITING_PAYMENT', 'Processing', 'InTransit', 'Completed', 'CANCELLED'];
   final _filterLabels = {
-    'AWAITING_PAYMENT': 'To Pay', 
-    'PAID': 'Processing', 
-    'OUT_FOR_DELIVERY': 'In Transit', 
-    'COMPLETED': 'Completed', 
-    'CANCELLED': 'Cancelled',
-    'PENDING': 'Pending'
+    'AWAITING_PAYMENT': 'To Pay',
+    'Processing':       'Processing',
+    'InTransit':        'In Transit',
+    'Completed':        'Completed',
+    'CANCELLED':        'Cancelled',
   };
+
 
   @override
   void initState() {
@@ -62,9 +67,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
 
-  List<dynamic> get _filteredOrders => _filter == 'All'
-      ? _orders
-      : _orders.where((o) => (o['status'] ?? '') == _filter).toList();
+  List<dynamic> get _filteredOrders {
+    if (_filter == 'All') return _orders;
+    if (_filter == 'Processing') return _orders.where((o) => _processingStatuses.contains(o['status'] ?? '')).toList();
+    if (_filter == 'InTransit')  return _orders.where((o) => _inTransitStatuses.contains(o['status'] ?? '')).toList();
+    if (_filter == 'Completed')  return _orders.where((o) => _completedStatuses.contains(o['status'] ?? '')).toList();
+    return _orders.where((o) => (o['status'] ?? '') == _filter).toList();
+  }
 
   Color _statusColor(String status) {
     switch (status) {
