@@ -13,8 +13,15 @@ const BACKEND_URL = process.env.APP_BASE_URL || 'https://afya-links-production.u
 const confirmPaymentByTrackingId = async (trackingId: string, merchantReference: string): Promise<void> => {
     const txStatus = await getTransactionStatus(trackingId);
 
-    const isCompleted = txStatus.payment_status_code === 1;
-    const isFailed = txStatus.payment_status_code === 2 || txStatus.payment_status_code === 3;
+    console.log(`[Payment Confirm] TrackingId=${trackingId}, OrderRef=${merchantReference}`);
+    console.log(`[Payment Confirm] Pesapal status: code=${txStatus.payment_status_code}, desc="${txStatus.payment_status_description}", amount=${txStatus.amount}`);
+
+    // Pesapal sandbox sometimes returns string description instead of numeric code.
+    // Handle BOTH formats to be safe.
+    const statusCode = Number(txStatus.payment_status_code);
+    const statusDesc = String(txStatus.payment_status_description || '').toLowerCase();
+    const isCompleted = statusCode === 1 || statusDesc === 'completed';
+    const isFailed = statusCode === 2 || statusCode === 3 || statusDesc === 'failed' || statusDesc === 'reversed';
 
     // Update transaction log
     await supabase
@@ -39,15 +46,26 @@ const confirmPaymentByTrackingId = async (trackingId: string, merchantReference:
             .single();
 
         if (order && order.status === 'AWAITING_PAYMENT') {
-            // Allow a small tolerance (±2 UGX) for rounding and sandbox discrepancies
             const expectedAmount = Number(order.total_payable);
             const receivedAmount = Number(txStatus.amount);
-            const amountOk = Math.abs(expectedAmount - receivedAmount) <= 2;
+            const amountDiff = Math.abs(expectedAmount - receivedAmount);
+
+            console.log(`[Payment Confirm] Order total_payable=${expectedAmount}, Pesapal amount=${receivedAmount}, diff=${amountDiff}`);
+
+            // Allow ±50 UGX tolerance (sandbox can have minor discrepancies)
+            // For live, tighten this to ±2 if needed
+            const amountOk = amountDiff <= 50;
 
             if (amountOk) {
-                await supabase.from('orders')
+                const { error: updateErr } = await supabase.from('orders')
                     .update({ status: 'PAID', payment_status: 'VERIFIED' })
                     .eq('id', merchantReference);
+
+                if (updateErr) {
+                    console.error('[Payment Confirm] Failed to update order status:', updateErr);
+                } else {
+                    console.log(`[Payment Confirm] ✅ Order ${merchantReference} marked PAID`);
+                }
 
                 const shortId = merchantReference.slice(0, 8).toUpperCase();
                 Promise.resolve(supabase.from('notifications').insert([
@@ -71,13 +89,19 @@ const confirmPaymentByTrackingId = async (trackingId: string, merchantReference:
                 const { assignDriverAndNotify } = await import('../utils/driverAssignment');
                 Promise.resolve(assignDriverAndNotify(merchantReference, shortId)).catch(console.error);
             } else {
-                console.error(`[Payment] Amount mismatch on order ${merchantReference}. Expected ${expectedAmount}, got ${receivedAmount}`);
+                console.error(`[Payment Confirm] ❌ Amount mismatch — expected ${expectedAmount}, got ${receivedAmount}. Order NOT updated.`);
             }
+        } else {
+            if (!order) console.error(`[Payment Confirm] Order ${merchantReference} not found in DB`);
+            else console.log(`[Payment Confirm] Order status is already "${order.status}" — skipping update`);
         }
     } else if (isFailed) {
         await supabase.from('orders')
             .update({ payment_status: 'PAYMENT_FAILED' })
             .eq('id', merchantReference);
+        console.log(`[Payment Confirm] ❌ Payment FAILED for order ${merchantReference}`);
+    } else {
+        console.warn(`[Payment Confirm] Unknown/pending status for ${merchantReference}: code=${txStatus.payment_status_code}, desc="${txStatus.payment_status_description}"`);
     }
 };
 
@@ -212,3 +236,54 @@ export const pesapalCallback = async (req: Request, res: Response): Promise<void
         </html>
     `);
 };
+
+/**
+ * Admin: Manually confirm a stuck order using its Pesapal tracking ID.
+ * POST /admin/payments/confirm
+ * Body: { order_tracking_id, order_id }
+ * Use this to fix orders stuck at AWAITING_PAYMENT after payment was received.
+ */
+export const adminConfirmPayment = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { order_tracking_id, order_id } = req.body;
+
+        if (!order_tracking_id || !order_id) {
+            res.status(400).json({ success: false, message: 'order_tracking_id and order_id are required' });
+            return;
+        }
+
+        console.log(`[Admin Manual Confirm] Forcing confirmation for order=${order_id}, tracking=${order_tracking_id}`);
+        await confirmPaymentByTrackingId(order_tracking_id, order_id);
+
+        // Fetch updated order to return the result
+        const { data: order } = await supabase
+            .from('orders')
+            .select('id, status, payment_status')
+            .eq('id', order_id)
+            .single();
+
+        res.status(200).json({
+            success: true,
+            message: 'Payment confirmation attempted. Check order status below.',
+            order
+        });
+    } catch (error: any) {
+        console.error('[Admin Manual Confirm] Error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Admin: Check Pesapal status for a given tracking ID (diagnostic tool).
+ * GET /admin/payments/status/:tracking_id
+ */
+export const adminCheckPesapalStatus = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { tracking_id } = req.params;
+        const txStatus = await getTransactionStatus(tracking_id as string);
+        res.status(200).json({ success: true, pesapal_status: txStatus });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
