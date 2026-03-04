@@ -48,20 +48,19 @@ class _OrdersScreenState extends State<OrdersScreen> {
           _loading = false;
         });
       } else {
-        setState(() { _orders = _mockOrders; _loading = false; });
+        debugPrint('[Orders] API error ${res.statusCode}: ${res.body}');
+        setState(() { _orders = []; _loading = false; });
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load orders (${res.statusCode})'), backgroundColor: _red));
       }
-    } catch (_) {
-      setState(() { _orders = _mockOrders; _loading = false; });
+    } catch (e) {
+      debugPrint('[Orders] Exception: $e');
+      setState(() { _orders = []; _loading = false; });
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Network error loading orders'), backgroundColor: Colors.grey));
     }
   }
 
-  List<Map<String, dynamic>> get _mockOrders => [
-    {'id': 'ord-1045', 'display_id': '#1045', 'items': 'Amoxicillin 500mg × 20', 'status': 'IN_TRANSIT', 'date': 'Feb 27, 2026', 'urgent': true},
-    {'id': 'ord-1044', 'display_id': '#1044', 'items': 'Paracetamol 1g × 50', 'status': 'DELIVERED', 'date': 'Feb 27, 2026', 'urgent': false},
-    {'id': 'ord-1043', 'display_id': '#1043', 'items': 'Metformin 500mg × 30', 'status': 'DELIVERED', 'date': 'Feb 26, 2026', 'urgent': false},
-    {'id': 'ord-1042', 'display_id': '#1042', 'items': 'ORS Sachets × 100', 'status': 'PENDING', 'date': 'Feb 26, 2026', 'urgent': true},
-    {'id': 'ord-1041', 'display_id': '#1041', 'items': 'IV Drip × 5', 'status': 'CANCELLED', 'date': 'Feb 25, 2026', 'urgent': false},
-  ];
 
   List<dynamic> get _filteredOrders => _filter == 'All'
       ? _orders
