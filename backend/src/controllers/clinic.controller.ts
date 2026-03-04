@@ -181,52 +181,41 @@ export const confirmDelivery = async (req: AuthRequest, res: Response): Promise<
             res.status(400).json({ success: false, message: 'Invalid delivery code. Check your receipt.' });
             return;
         }
-            .eq('id', orderId)
-    .eq('clinic_id', clinicId)
-    .single();
 
-if (orderError || !order) {
-    res.status(404).json({ success: false, message: 'Order not found' });
-    return;
-}
+        if (order.status === 'COMPLETED' || order.status === 'DELIVERED') {
+            res.status(400).json({ success: false, message: 'Order is already completed' });
+            return;
+        }
 
-if (order.status === 'COMPLETED' || order.status === 'DELIVERED') {
-    res.status(400).json({ success: false, message: 'Order is already completed' });
-    return;
-}
+        // Atomic Status Update
+        const { error: updateError } = await supabase
+            .from('orders')
+            .update({
+                status: 'COMPLETED',
+                payout_status: 'INITIATED'
+            })
+            .eq('id', orderId);
 
-// Atomic Status Update
-const { error: updateError } = await supabase
-    .from('orders')
-    .update({
-        status: 'COMPLETED',
-        payout_status: 'INITIATED'
-    })
-    .eq('id', orderId);
+        if (updateError) throw updateError;
 
-if (updateError) throw updateError;
+        // Update deliveries dropoff_time
+        try {
+            await supabase
+                .from('deliveries')
+                .update({ dropoff_time: new Date() })
+                .eq('order_id', orderId);
+        } catch (e) {
+            console.error('Failed to update dropoff time:', e);
+        }
 
-// Clear OTP
-deliveryOtpStore.delete(orderId);
-
-// Update deliveries dropoff_time
-try {
-    await supabase
-        .from('deliveries')
-        .update({ dropoff_time: new Date() })
-        .eq('order_id', orderId);
-} catch (e) {
-    console.error('Failed to update dropoff time:', e);
-}
-
-res.status(200).json({
-    success: true,
-    message: 'Delivery confirmed and escrow funds released successfully'
-});
+        res.status(200).json({
+            success: true,
+            message: 'Delivery confirmed and escrow funds released successfully'
+        });
 
     } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
-}
+        res.status(500).json({ success: false, message: error.message });
+    }
 };
 
 export const getDashboardStatsClinic = async (req: AuthRequest, res: Response): Promise<void> => {
