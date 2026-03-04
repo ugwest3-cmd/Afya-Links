@@ -78,16 +78,15 @@ const confirmPaymentByTrackingId = async (trackingId: string, merchantReference:
                     },
                     {
                         user_id: order.pharmacy_id,
-                        title: '💰 Payment Received – Action Required',
-                        body: `Payment for order #${shortId} has been confirmed. Please check your Orders Inbox and action this order.`,
+                        title: '💰 New Paid Order – Action Required',
+                        body: `Payment for order #${shortId} has been confirmed. Please open your Orders Inbox and respond to this order.`,
                         type: 'PAYMENT_SUCCESS',
                         is_read: false
                     }
                 ])).catch(console.error);
 
-                // Auto-assign driver if one is linked to this clinic's route
-                const { assignDriverAndNotify } = await import('../utils/driverAssignment');
-                Promise.resolve(assignDriverAndNotify(merchantReference, shortId)).catch(console.error);
+                // NOTE: Driver assignment happens when pharmacy marks the order ready.
+                // Do NOT assign driver here — pharmacy must accept and mark ready first.
             } else {
                 console.error(`[Payment Confirm] ❌ Amount mismatch — expected ${expectedAmount}, got ${receivedAmount}. Order NOT updated.`);
             }
