@@ -94,20 +94,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
     return _filterLabels[status] ?? status;
   }
 
-  Future<void> _handleConfirmDeliveryRequest(String orderId) async {
-    showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
-    try {
-      final res = await ApiService.requestDeliveryOtp(orderId);
-      if (mounted) Navigator.pop(context);
-      if (res.statusCode == 200) {
-        if (mounted) _showConfirmDeliveryDialog(context, orderId);
-      } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${jsonDecode(res.body)['message']}'), backgroundColor: _red));
-      }
-    } catch (_) {
-      if (mounted) Navigator.pop(context);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Network error. Check connection.'), backgroundColor: _red));
-    }
+  void _handleConfirmDeliveryRequest(String orderId) {
+    _showConfirmDeliveryDialog(context, orderId);
   }
 
   Future<void> _handlePayNow(String orderId) async {
@@ -206,11 +194,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 const SizedBox(height: 20),
                 TextField(
                   controller: codeCtrl,
-                  keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    labelText: 'Enter OTP from SMS',
-                    hintText: 'e.g. 123456',
-                    prefixIcon: const Icon(Icons.password_rounded, color: _green),
+                    labelText: 'Enter Order Code from Pharmacy',
+                    hintText: 'Code written on receipt/parcel',
+                    prefixIcon: const Icon(Icons.qr_code_rounded, color: _green),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
