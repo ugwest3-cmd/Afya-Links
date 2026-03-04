@@ -105,6 +105,12 @@ class ApiService {
     );
   }
 
+  /// GET /api/payments/order-status/:order_id — poll for order status after payment
+  static Future<http.Response> getOrderStatus(String orderId) async {
+    final headers = await _authHeaders();
+    return http.get(Uri.parse('$baseUrl/payments/order-status/$orderId'), headers: headers);
+  }
+
   /// POST /api/clinics/orders/:id/request-otp
   static Future<http.Response> requestDeliveryOtp(String orderId) async {
     final headers = await _authHeaders();

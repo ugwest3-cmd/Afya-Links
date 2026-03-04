@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middlewares/authMiddleware';
-import { initiatePayment, pesapalWebhook, pesapalCallback } from '../controllers/payment.controller';
+import { initiatePayment, pesapalWebhook, pesapalCallback, adminConfirmPayment, adminCheckPesapalStatus, getOrderPaymentStatus } from '../controllers/payment.controller';
 
 const router = Router();
 
@@ -15,5 +15,8 @@ router.get('/callback', pesapalCallback);
 // Important: This MUST NOT require auth — Pesapal servers call it directly
 router.post('/webhook', pesapalWebhook);
 router.get('/webhook', pesapalWebhook); // Support both GET and POST IPN notifications
+
+// Clinic: poll order status after payment (replaces manual refresh)
+router.get('/order-status/:order_id', requireAuth, getOrderPaymentStatus);
 
 export default router;

@@ -111,15 +111,61 @@ class _OrdersScreenState extends State<OrdersScreen> {
         final data = jsonDecode(res.body);
         final url = data['redirect_url'];
         if (mounted) {
-          await PaymentWebViewSheet.show(context, url, title: 'Order Payment');
+          // WebView now auto-closes when callback URL is detected and returns tracking ID
+          await PaymentWebViewSheet.show(context, url, orderId, title: 'Order Payment');
         }
-        _loadOrders();
+        // Poll for order status update (up to 30 seconds / 10 tries every 3s)
+        await _pollForPaymentConfirmation(orderId);
       } else {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Payment failed: ${jsonDecode(res.body)['message']}'), backgroundColor: _red));
       }
     } catch (_) {
       if (mounted) Navigator.pop(context);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Network error. Check connection.'), backgroundColor: _red));
+    }
+  }
+
+  Future<void> _pollForPaymentConfirmation(String orderId) async {
+    if (!mounted) return;
+    // Show polling indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(children: [
+          CircularProgressIndicator(),
+          SizedBox(width: 16),
+          Text('Verifying payment...'),
+        ]),
+      ),
+    );
+
+    bool confirmed = false;
+    for (int attempt = 0; attempt < 10; attempt++) {
+      await Future.delayed(const Duration(seconds: 3));
+      try {
+        final statusRes = await ApiService.getOrderStatus(orderId);
+        if (statusRes.statusCode == 200) {
+          final body = jsonDecode(statusRes.body);
+          final status = body['status'] ?? body['data']?['status'] ?? '';
+          if (status != 'AWAITING_PAYMENT') {
+            confirmed = true;
+            break;
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (mounted) Navigator.pop(context); // close dialog
+    _loadOrders();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(confirmed ? '✅ Payment confirmed! Order is now processing.' : 'Payment submitted. Your order list has been refreshed.'),
+        backgroundColor: confirmed ? _green : _orange,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
     }
   }
 

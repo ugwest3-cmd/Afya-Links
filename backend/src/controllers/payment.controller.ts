@@ -287,3 +287,30 @@ export const adminCheckPesapalStatus = async (req: AuthRequest, res: Response): 
     }
 };
 
+
+/**
+ * Clinic: Poll order payment status by order ID.
+ * GET /api/payments/order-status/:order_id
+ */
+export const getOrderPaymentStatus = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const clinicId = req.user?.id;
+        const { order_id } = req.params;
+
+        const { data: order, error } = await supabase
+            .from('orders')
+            .select('id, status, payment_status')
+            .eq('id', order_id)
+            .eq('clinic_id', clinicId)
+            .single();
+
+        if (error || !order) {
+            res.status(404).json({ success: false, message: 'Order not found' });
+            return;
+        }
+
+        res.status(200).json({ success: true, status: order.status, payment_status: order.payment_status });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
