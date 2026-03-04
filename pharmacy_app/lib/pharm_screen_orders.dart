@@ -42,30 +42,21 @@ class _PharmOrdersScreenState extends State<PharmOrdersScreen> {
       final res = await ApiService.getInboxOrders();
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        setState(() { _orders = data['data'] ?? data['orders'] ?? []; _loading = false; });
+        setState(() { _orders = data['orders'] ?? data['data'] ?? []; _loading = false; });
       } else {
-        setState(() { _orders = _mockOrders; _loading = false; });
+        debugPrint('[PharmOrders] API error ${res.statusCode}: ${res.body}');
+        setState(() { _orders = []; _loading = false; });
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load orders (${res.statusCode})'), backgroundColor: _red));
       }
-    } catch (_) {
-      setState(() { _orders = _mockOrders; _loading = false; });
+    } catch (e) {
+      debugPrint('[PharmOrders] Exception: $e');
+      setState(() { _orders = []; _loading = false; });
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Network error loading orders'), backgroundColor: Colors.grey));
     }
   }
 
-  List<Map<String, dynamic>> get _mockOrders => [
-    {'id': 'ord-1045', 'display_id': '#1045', 'clinic': 'St. Luke\'s Clinic', 'items': [
-      {'drug_name': 'Amoxicillin 500mg', 'quantity': 20},
-      {'drug_name': 'Paracetamol 1g', 'quantity': 10},
-    ], 'status': 'PAID', 'created_at': '5 min ago', 'urgent': true, 'delivery_address': 'Kampala Road, KLA'},
-    {'id': 'ord-1044', 'display_id': '#1044', 'clinic': 'Hope Health Centre', 'items': [
-      {'drug_name': 'Paracetamol 1g', 'quantity': 50},
-    ], 'status': 'ACCEPTED', 'created_at': '1 hr ago', 'urgent': false, 'order_code': 'HX7K2P'},
-    {'id': 'ord-1043', 'display_id': '#1043', 'clinic': 'Grace Clinic', 'items': [
-      {'drug_name': 'Metformin 500mg', 'quantity': 30},
-    ], 'status': 'READY_FOR_PICKUP', 'created_at': '2 hrs ago', 'urgent': false, 'order_code': 'AB3MN9'},
-    {'id': 'ord-1042', 'display_id': '#1042', 'clinic': 'Sunrise Dispensary', 'items': [
-      {'drug_name': 'ORS Sachets', 'quantity': 100},
-    ], 'status': 'REJECTED', 'created_at': '3 hrs ago', 'urgent': false},
-  ];
 
   List<dynamic> get _filtered => _filter == 'All' ? _orders : _orders.where((o) => o['status'] == _filter).toList();
 
