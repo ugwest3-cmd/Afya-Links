@@ -15,7 +15,8 @@ import {
     resolveDispute,
     getDriverRoutes,
     upsertDriverRoute,
-    deleteDriverRoute
+    deleteDriverRoute,
+    markPayoutPaid
 } from '../controllers/admin.controller';
 import { adminConfirmPayment, adminCheckPesapalStatus } from '../controllers/payment.controller';
 
@@ -38,6 +39,7 @@ router.post('/invoices/:id/verify', verifyPayment);
 // Escrow Management
 router.get('/escrow', getEscrowLedger);
 router.post('/escrow/resolve', resolveDispute);
+router.post('/escrow/:id/mark-paid', markPayoutPaid);
 
 // Clinic-Driver Route Assignments
 router.get('/driver-routes', getDriverRoutes);

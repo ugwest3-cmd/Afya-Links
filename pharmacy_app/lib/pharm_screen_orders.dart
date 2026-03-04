@@ -57,6 +57,19 @@ class _PharmOrdersScreenState extends State<PharmOrdersScreen> {
     }
   }
 
+  String _formatCurrency(dynamic val) {
+    if (val == null) return 'UGX 0';
+    try {
+      double d = double.parse(val.toString());
+      if (d == 0) return 'UGX 0';
+      String s = d.toStringAsFixed(0);
+      RegExp reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
+      s = s.replaceAllMapped(reg, (Match m) => '${m[1]},');
+      return 'UGX $s';
+    } catch (_) {
+      return 'UGX $val';
+    }
+  }
 
   List<dynamic> get _filtered => _filter == 'All' ? _orders : _orders.where((o) => o['status'] == _filter).toList();
 
@@ -252,7 +265,11 @@ class _PharmOrdersScreenState extends State<PharmOrdersScreen> {
                             final o = _filtered[i] as Map<String, dynamic>;
                             final status = o['status'] as String? ?? 'PENDING';
                             final color = _statusColor(status);
-                            final id = o['display_id'] ?? o['id'] ?? '#${i + 1}';
+                            
+                            String rawId = o['display_id'] ?? o['id']?.toString() ?? '${i + 1}';
+                            String shortId = rawId.contains('-') ? rawId.split('-').first.toUpperCase() : rawId.toUpperCase();
+                            final id = 'Order #$shortId';
+                            
                             final items = o['items'] as List? ?? [];
 
                             return Container(
@@ -303,7 +320,31 @@ class _PharmOrdersScreenState extends State<PharmOrdersScreen> {
                                         ]),
                                       )),
                                   const SizedBox(height: 6),
-                                  Text(o['created_at'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                                  Text(o['created_at'] != null ? o['created_at'].toString().split('T').first : '', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 12),
+                                    child: Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
+                                  ),
+                                  
+                                  // Money Breakdown
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                        const Text('Order Value', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                                        Text(_formatCurrency(o['subtotal'] ?? 0), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                                      ]),
+                                      Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                                        const Text('Commission', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                                        Text('- ' + _formatCurrency(o['pharmacy_commission'] ?? 0), style: const TextStyle(color: _red, fontWeight: FontWeight.w600, fontSize: 12)),
+                                      ]),
+                                      Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                                        const Text('Pharmacy Earnings', style: TextStyle(color: _primary, fontSize: 11, fontWeight: FontWeight.bold)),
+                                        Text(_formatCurrency(o['pharmacy_net'] ?? 0), style: const TextStyle(color: _primary, fontWeight: FontWeight.w800, fontSize: 14)),
+                                      ]),
+                                    ],
+                                  ),
 
                                   // Order code if available
                                   if (o['order_code'] != null) ...[

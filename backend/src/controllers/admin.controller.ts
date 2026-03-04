@@ -287,6 +287,7 @@ export const getEscrowLedger = async (req: AuthRequest, res: Response): Promise<
                 order_code,
                 status, 
                 payment_status,
+                payout_status,
                 total_payable,
                 pharmacy_net,
                 driver_net,
@@ -358,6 +359,34 @@ export const resolveDispute = async (req: AuthRequest, res: Response): Promise<v
 
         res.status(200).json({ success: true, message: `Dispute resolved: ${resolution_action}` });
 
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+};
+
+export const markPayoutPaid = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { id: order_id } = req.params;
+
+        const { data: order, error } = await supabase
+            .from('orders')
+            .select('id, payout_status')
+            .eq('id', order_id)
+            .single();
+
+        if (error || !order) {
+            res.status(404).json({ success: false, message: 'Order not found' });
+            return;
+        }
+
+        const { error: updateError } = await supabase
+            .from('orders')
+            .update({ payout_status: 'PAID' })
+            .eq('id', order_id);
+
+        if (updateError) throw updateError;
+
+        res.status(200).json({ success: true, message: 'Payout marked as PAID successfully' });
     } catch (e: any) {
         res.status(500).json({ success: false, message: e.message });
     }

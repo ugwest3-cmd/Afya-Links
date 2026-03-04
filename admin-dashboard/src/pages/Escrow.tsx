@@ -57,6 +57,23 @@ export const Escrow = () => {
         }
     };
 
+    const handleMarkPaid = async (orderId: string) => {
+        if (!confirm('Are you sure you want to mark this payout as PAID? This means you have manually sent the money to the pharmacy.')) return;
+
+        try {
+            setActionLoading(orderId);
+            const res = await api.post(`/admin/escrow/${orderId}/mark-paid`);
+            if (res.data.success) {
+                fetchLedger();
+            }
+        } catch (error) {
+            console.error('Failed to mark paid:', error);
+            alert('Failed to update payout status');
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
     const filtered = useMemo(() => {
         return ledger.filter(o => {
             const statusMatch = activeFilter === 'All' || o.status === activeFilter;
@@ -173,6 +190,11 @@ export const Escrow = () => {
                                 <td>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
                                         <span className={`badge ${STATUS_BADGE[item.status] ?? 'badge-secondary'}`}>{item.status}</span>
+                                        {item.status === 'COMPLETED' && (
+                                            <span className={`badge ${item.payout_status === 'PAID' ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '0.65rem' }}>
+                                                Payout: {item.payout_status || 'NOT SET'}
+                                            </span>
+                                        )}
                                     </div>
                                 </td>
                                 <td style={{ fontWeight: 600 }}>UGX {Number(item.total_payable || 0).toLocaleString()}</td>
@@ -200,6 +222,16 @@ export const Escrow = () => {
                                                 Refund
                                             </button>
                                         </div>
+                                    ) : item.status === 'COMPLETED' && item.payout_status === 'INITIATED' ? (
+                                        <button
+                                            className="btn btn-success"
+                                            style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                                            onClick={() => handleMarkPaid(item.id)}
+                                            disabled={actionLoading === item.id}
+                                        >
+                                            {actionLoading === item.id ? <RefreshCw size={12} className="spin" /> : <CheckCircle2 size={12} />}
+                                            Mark Paid
+                                        </button>
                                     ) : (
                                         <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>—</span>
                                     )}

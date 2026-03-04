@@ -113,38 +113,6 @@ class _PharmDashboardScreenState extends State<PharmDashboardScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-
-            // Earnings Summary
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _EarningItem(
-                      label: 'Total Earned',
-                      value: _stats['total_earnings']?.toString() ?? '0',
-                      color: _green,
-                      icon: Icons.account_balance_wallet_rounded,
-                    ),
-                  ),
-                  Container(width: 1, height: 40, color: Colors.grey.shade200),
-                  Expanded(
-                    child: _EarningItem(
-                      label: 'Pending Payout',
-                      value: _stats['pending_balance']?.toString() ?? '0',
-                      color: _orange,
-                      icon: Icons.hourglass_bottom_rounded,
-                    ),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: 24),
 
             // Stats
@@ -202,46 +170,6 @@ class _PharmDashboardScreenState extends State<PharmDashboardScreen> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _EarningItem extends StatelessWidget {
-  final String label, value;
-  final Color color;
-  final IconData icon;
-
-  const _EarningItem({required this.label, required this.value, required this.color, required this.icon});
-
-  String _formatCurrency(String val) {
-    try {
-      double d = double.parse(val);
-      if (d == 0) return 'UGX 0';
-      // Simple Ugandan Shilling formatter (comma every 3 digits)
-      String s = d.toStringAsFixed(0);
-      RegExp reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
-      s = s.replaceAllMapped(reg, (Match m) => '${m[1]},');
-      return 'UGX $s';
-    } catch (_) {
-      return 'UGX $val';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(height: 6),
-        Text(
-          _formatCurrency(value),
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color),
-        ),
-        Text(
-          label,
-          style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
-        ),
-      ],
     );
   }
 }
