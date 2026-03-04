@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares/authMiddleware';
 import { supabase } from '../config/supabase';
+import { sendNotification } from '../services/notification.service';
 
 // ... (keep the existing getPriceOffers and createOrder)
 
@@ -131,13 +132,22 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
         if (itemsError) throw itemsError;
 
         // Notify pharmacy of new incoming order (non-blocking)
+        const shortId = order.id.slice(0, 8).toUpperCase();
         Promise.resolve(supabase.from('notifications').insert([{
             user_id: pharmacy_id,
             title: '🛒 New Order Received',
-            body: `A new order (#${order.id.slice(0, 8).toUpperCase()}) has been placed and is awaiting payment. It will appear in your inbox once payment clears.`,
+            body: `A new order (#${shortId}) has been placed and is awaiting payment. It will appear in your inbox once payment clears.`,
             type: 'NEW_ORDER',
             is_read: false
         }])).catch(console.error);
+
+        // Send a push notification to the clinic
+        sendNotification({
+            userId: clinicId as string,
+            title: 'Order Created',
+            body: `Order #${shortId} created successfully. Please wait to be redirected to payment.`,
+            type: 'ORDER_CREATED'
+        });
 
         res.status(201).json({ success: true, message: 'Order created successfully', order_id: order.id });
 

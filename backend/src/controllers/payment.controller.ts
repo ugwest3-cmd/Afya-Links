@@ -2,6 +2,7 @@ import { Response, Request } from 'express';
 import { AuthRequest } from '../middlewares/authMiddleware';
 import { supabase } from '../config/supabase';
 import { submitOrder, getTransactionStatus } from '../utils/pesapal';
+import { sendNotification } from '../services/notification.service';
 
 const APP_FRONTEND_URL = process.env.APP_FRONTEND_URL || 'https://afya-links-frontend.vercel.app';
 const BACKEND_URL = process.env.APP_BASE_URL || 'https://afya-links-production.up.railway.app';
@@ -68,22 +69,22 @@ const confirmPaymentByTrackingId = async (trackingId: string, merchantReference:
                 }
 
                 const shortId = merchantReference.slice(0, 8).toUpperCase();
-                Promise.resolve(supabase.from('notifications').insert([
-                    {
-                        user_id: order.clinic_id,
-                        title: '✅ Payment Confirmed',
-                        body: `Your payment for order #${shortId} was successful. The pharmacy is now processing your order.`,
-                        type: 'PAYMENT_SUCCESS',
-                        is_read: false
-                    },
-                    {
-                        user_id: order.pharmacy_id,
-                        title: '💰 New Paid Order – Action Required',
-                        body: `Payment for order #${shortId} has been confirmed. Please open your Orders Inbox and respond to this order.`,
-                        type: 'PAYMENT_SUCCESS',
-                        is_read: false
-                    }
-                ])).catch(console.error);
+
+                // Notify Clinic
+                sendNotification({
+                    userId: order.clinic_id,
+                    title: '✅ Payment Confirmed',
+                    body: `Your payment for order #${shortId} was successful. The pharmacy is now processing your order.`,
+                    type: 'PAYMENT_SUCCESS'
+                });
+
+                // Notify Pharmacy (Triggers Push Notification)
+                sendNotification({
+                    userId: order.pharmacy_id,
+                    title: '💰 New Paid Order – Action Required',
+                    body: `Payment for order #${shortId} has been confirmed. Please open your Orders Inbox and respond to this order.`,
+                    type: 'PAYMENT_SUCCESS'
+                });
 
                 // NOTE: Driver assignment happens when pharmacy marks the order ready.
                 // Do NOT assign driver here — pharmacy must accept and mark ready first.

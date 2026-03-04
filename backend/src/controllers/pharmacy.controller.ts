@@ -4,6 +4,7 @@ import { supabase } from '../config/supabase';
 import { uploadFileToSupabase } from '../utils/storage';
 import csvParser from 'csv-parser';
 import { Readable } from 'stream';
+import { sendNotification } from '../services/notification.service';
 import { assignDriverAndNotify } from '../utils/driverAssignment';
 
 export const uploadPriceList = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -154,13 +155,13 @@ export const respondToOrder = async (req: AuthRequest, res: Response): Promise<v
         };
         const notif = notifMap[status];
         if (notif && order.clinic_id) {
-            Promise.resolve(supabase.from('notifications').insert([{
-                user_id: order.clinic_id,
+            // Send push notification to the Clinic
+            sendNotification({
+                userId: order.clinic_id,
                 title: notif.title,
                 body: notif.body,
-                type: 'ORDER_STATUS',
-                is_read: false
-            }])).catch(console.error);
+                type: 'ORDER_STATUS_UPDATE'
+            });
         }
 
         if (status === 'ACCEPTED' || status === 'PARTIAL') {

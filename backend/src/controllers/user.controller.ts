@@ -223,3 +223,26 @@ export const markNotificationsRead = async (req: AuthRequest, res: Response): Pr
         res.status(500).json({ success: false, message: e.message });
     }
 };
+
+export const saveFcmToken = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+        const { fcm_token } = req.body;
+
+        if (!fcm_token) {
+            res.status(400).json({ success: false, message: 'FCM token is required' });
+            return;
+        }
+
+        const { error } = await supabase
+            .from('users')
+            .update({ fcm_token })
+            .eq('id', userId);
+
+        if (error) throw error;
+
+        res.status(200).json({ success: true, message: 'FCM token saved successfully' });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+};

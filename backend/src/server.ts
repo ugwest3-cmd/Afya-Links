@@ -1,5 +1,6 @@
 import app from './app';
 import dotenv from 'dotenv';
+import { initFirebase } from './config/firebase';
 import { initCronJobs } from './utils/cronJobs';
 
 dotenv.config();
@@ -13,6 +14,9 @@ try {
 } catch (err) {
     console.error('Cron jobs failed to initialize (non-fatal):', err);
 }
+
+// Initialize Firebase Admin SDK
+initFirebase();
 
 const server = app.listen(PORT, HOST, () => {
     console.log(`✅ Server is running on http://${HOST}:${PORT}`);

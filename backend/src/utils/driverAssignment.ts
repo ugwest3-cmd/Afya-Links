@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase';
 import { sendSMS } from './sms';
+import { sendNotification } from '../services/notification.service';
 
 export const assignDriverAndNotify = async (orderId: string, orderCode: string): Promise<void> => {
     try {
@@ -131,11 +132,26 @@ export const assignDriverAndNotify = async (orderId: string, orderCode: string):
         // Send to Driver
         await sendSMS([driver.phone], driverSms);
 
-        // Send to Pharmacy
+        // Send to Pharmacy (SMS + Push)
         const pharmacyPhone = pharmacyProfile?.contact_phone || (order.pharmacy as any)?.phone;
         if (pharmacyPhone) {
             await sendSMS([pharmacyPhone], pharmacySms);
         }
+
+        sendNotification({
+            userId: order.pharmacy_id,
+            title: '🛵 Driver Assigned',
+            body: pharmacySms,
+            type: 'DRIVER_ASSIGNED'
+        });
+
+        // Send push to Clinic
+        sendNotification({
+            userId: order.clinic_id,
+            title: '🛵 Driver Assigned',
+            body: `Driver ${driverName} (${driverPhone}) is out for pickup.`,
+            type: 'DRIVER_ASSIGNED'
+        });
 
     } catch (error) {
         console.error('Error in assignDriverAndNotify logic:', error);
