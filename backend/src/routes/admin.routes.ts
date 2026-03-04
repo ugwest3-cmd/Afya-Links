@@ -12,7 +12,10 @@ import {
     sendNotificationAdmin,
     deleteUser,
     getEscrowLedger,
-    resolveDispute
+    resolveDispute,
+    getDriverRoutes,
+    upsertDriverRoute,
+    deleteDriverRoute
 } from '../controllers/admin.controller';
 
 const router = Router();
@@ -34,5 +37,10 @@ router.post('/invoices/:id/verify', verifyPayment);
 // Escrow Management
 router.get('/escrow', getEscrowLedger);
 router.post('/escrow/resolve', resolveDispute);
+
+// Clinic-Driver Route Assignments
+router.get('/driver-routes', getDriverRoutes);
+router.post('/driver-routes', upsertDriverRoute);
+router.delete('/driver-routes/:clinic_id', deleteDriverRoute);
 
 export default router;

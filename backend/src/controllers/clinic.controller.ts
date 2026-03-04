@@ -71,12 +71,22 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
 
         const subtotal = items.reduce((sum, item) => sum + (item.price_agreed * item.quantity), 0);
 
-        // Exact Ledger Logic based on Pesapal Escrow Spec
+        // Look up the admin-configured delivery fee and driver for this clinic's route
+        const { data: routeAssignment } = await supabase
+            .from('clinic_driver_routes')
+            .select('driver_id, delivery_fee')
+            .eq('clinic_id', clinicId)
+            .eq('is_active', true)
+            .single();
+
+        const delivery_fee = routeAssignment?.delivery_fee ? Number(routeAssignment.delivery_fee) : 0;
+        const assigned_driver_id = routeAssignment?.driver_id || null;
+
+        // Escrow Ledger calculations
         const pharmacy_commission = subtotal * 0.08; // 8% Pharmacy Commission
         const pharmacy_net = subtotal - pharmacy_commission;
 
-        const delivery_fee = 10000; // Estimated baseline fee
-        const driver_commission = delivery_fee * 0.15; // 15% Driver Commission
+        const driver_commission = delivery_fee > 0 ? delivery_fee * 0.15 : 0; // 15% Driver Commission
         const driver_net = delivery_fee - driver_commission;
 
         const total_platform_revenue = pharmacy_commission + driver_commission;
@@ -87,6 +97,7 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
             .insert([{
                 clinic_id: clinicId,
                 pharmacy_id,
+                driver_id: assigned_driver_id,
                 status: 'AWAITING_PAYMENT',
                 payment_status: 'AWAITING_PAYMENT',
                 subtotal,

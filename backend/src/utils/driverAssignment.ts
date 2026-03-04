@@ -14,6 +14,7 @@ export const assignDriverAndNotify = async (orderId: string, orderCode: string):
                 delivery_fee,
                 clinic_id,
                 pharmacy_id,
+                driver_id,
                 clinic:users!orders_clinic_id_fkey(phone),
                 pharmacy:users!orders_pharmacy_id_fkey(phone)
             `)
@@ -38,57 +39,66 @@ export const assignDriverAndNotify = async (orderId: string, orderCode: string):
             .eq('user_id', order.clinic_id)
             .single();
 
-        // 2. Find a verified driver
-        // Requirement: pick verified driver in the clinic's region who is currently available
-        const currentHour = new Date().getHours();
+        // 2. Find the correct driver
+        // Priority 1: Use the driver already embedded in the order (from clinic_driver_routes lookup at order creation)
+        // Priority 2: Fall back to picking any available verified driver
+        let driver: { id: string; phone: string; name: string } | null = null;
 
-        let targetRegion = 'Default';
-        if (clinicProfile?.address) {
-            // Very basic region extraction placeholder; assuming address contains region or region is passed
-            // For MVP, we'll try to match a driver who has *any* assigned region for now, 
-            // or modify the query to check if the driver's 'region' text matches part of the clinic address.
-        }
-
-        const { data: drivers, error: driverError } = await supabase
-            .from('users')
-            .select(`
-                id, 
-                phone, 
-                name,
-                driver_profiles(region, available_hours)
-            `)
-            .eq('role', 'DRIVER')
-            .eq('is_verified', true);
-
-        if (driverError || !drivers || drivers.length === 0) {
-            console.error('No verified drivers available for assignment', driverError);
-            return;
-        }
-
-        // Extremely basic time filtering: available_hours might be "08:00-17:00"
-        let availableDrivers = drivers.filter(d => {
-            const profiles = d.driver_profiles as any;
-            const profile = Array.isArray(profiles) ? profiles[0] : profiles;
-
-            if (!profile || !profile.available_hours) return true; // Default to available
-
-            try {
-                const [startStr, endStr] = profile.available_hours.split('-');
-                const startHour = parseInt(startStr.split(':')[0]);
-                const endHour = parseInt(endStr.split(':')[0]);
-                return currentHour >= startHour && currentHour < endHour;
-            } catch (e) {
-                return true; // IF parsing fails, assume available
+        if (order.driver_id) {
+            const { data: preAssigned } = await supabase
+                .from('users')
+                .select('id, phone, name')
+                .eq('id', order.driver_id)
+                .eq('is_verified', true)
+                .single();
+            if (preAssigned) {
+                driver = preAssigned;
+                console.log(`[Driver Assignment] Using pre-assigned driver ${driver.name} (${driver.id}) for order ${orderId}`);
             }
-        });
-
-        if (availableDrivers.length === 0) {
-            console.error('No drivers available at this hour');
-            return;
         }
 
-        // Just pick the first available one for MVP
-        const driver = availableDrivers[0];
+        if (!driver) {
+            // Fallback: look for any available verified driver
+            console.log(`[Driver Assignment] No pre-assigned driver for order ${orderId}. Selecting from pool.`);
+            const currentHour = new Date().getHours();
+
+            const { data: drivers, error: driverError } = await supabase
+                .from('users')
+                .select(`
+                    id, 
+                    phone, 
+                    name,
+                    driver_profiles(region, available_hours)
+                `)
+                .eq('role', 'DRIVER')
+                .eq('is_verified', true);
+
+            if (driverError || !drivers || drivers.length === 0) {
+                console.error('No verified drivers available for assignment', driverError);
+                return;
+            }
+
+            const availableDrivers = drivers.filter(d => {
+                const profiles = d.driver_profiles as any;
+                const profile = Array.isArray(profiles) ? profiles[0] : profiles;
+                if (!profile || !profile.available_hours) return true;
+                try {
+                    const [startStr, endStr] = profile.available_hours.split('-');
+                    const startHour = parseInt(startStr.split(':')[0]);
+                    const endHour = parseInt(endStr.split(':')[0]);
+                    return currentHour >= startHour && currentHour < endHour;
+                } catch (e) {
+                    return true;
+                }
+            });
+
+            if (availableDrivers.length === 0) {
+                console.error('No drivers available at this hour');
+                return;
+            }
+
+            driver = availableDrivers[0] as { id: string; phone: string; name: string };
+        }
 
         // 3. Create delivery record and update order to ASSIGNED
         const { error: deliveryError } = await supabase

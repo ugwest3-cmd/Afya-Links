@@ -362,3 +362,103 @@ export const resolveDispute = async (req: AuthRequest, res: Response): Promise<v
         res.status(500).json({ success: false, message: e.message });
     }
 };
+
+// ── Clinic-Driver Route Assignments ──────────────────────────────────────────
+
+/**
+ * GET /admin/driver-routes
+ * Returns all clinic-driver assignments with clinic and driver names.
+ */
+export const getDriverRoutes = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { data: routes, error } = await supabase
+            .from('clinic_driver_routes')
+            .select(`
+                id,
+                clinic_id,
+                driver_id,
+                delivery_fee,
+                notes,
+                is_active,
+                created_at,
+                updated_at,
+                clinic:users!clinic_driver_routes_clinic_id_fkey(id, name, phone),
+                driver:users!clinic_driver_routes_driver_id_fkey(id, name, phone)
+            `)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        res.status(200).json({ success: true, routes });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+};
+
+/**
+ * POST /admin/driver-routes
+ * Create or update a clinic-driver route assignment.
+ * Body: { clinic_id, driver_id, delivery_fee, notes? }
+ */
+export const upsertDriverRoute = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { clinic_id, driver_id, delivery_fee, notes } = req.body;
+
+        if (!clinic_id || !driver_id || delivery_fee === undefined) {
+            res.status(400).json({ success: false, message: 'clinic_id, driver_id, and delivery_fee are required' });
+            return;
+        }
+
+        // Verify clinic and driver exist with correct roles
+        const { data: clinicUser } = await supabase.from('users').select('role').eq('id', clinic_id).single();
+        const { data: driverUser } = await supabase.from('users').select('role').eq('id', driver_id).single();
+
+        if (clinicUser?.role !== 'CLINIC') {
+            res.status(400).json({ success: false, message: 'clinic_id does not belong to a CLINIC user' });
+            return;
+        }
+        if (driverUser?.role !== 'DRIVER') {
+            res.status(400).json({ success: false, message: 'driver_id does not belong to a DRIVER user' });
+            return;
+        }
+
+        const { data: route, error } = await supabase
+            .from('clinic_driver_routes')
+            .upsert({
+                clinic_id,
+                driver_id,
+                delivery_fee: Number(delivery_fee),
+                notes: notes || null,
+                is_active: true
+            }, { onConflict: 'clinic_id' })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.status(200).json({ success: true, message: 'Route assignment saved', route });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+};
+
+/**
+ * DELETE /admin/driver-routes/:clinic_id
+ * Remove a clinic-driver route assignment.
+ */
+export const deleteDriverRoute = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { clinic_id } = req.params;
+
+        const { error } = await supabase
+            .from('clinic_driver_routes')
+            .delete()
+            .eq('clinic_id', clinic_id);
+
+        if (error) throw error;
+
+        res.status(200).json({ success: true, message: 'Route assignment removed' });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+};
