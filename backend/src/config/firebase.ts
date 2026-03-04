@@ -3,15 +3,21 @@ import * as admin from 'firebase-admin';
 // Initialize Firebase Admin with the JSON file
 export const initFirebase = () => {
     try {
+        const serviceAccountJsonStr = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
         const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
 
-        if (!serviceAccountPath) {
-            console.warn('[Firebase] Warning: FIREBASE_SERVICE_ACCOUNT_PATH environment variable not set. Push notifications will be disabled.');
+        let serviceAccount: any;
+
+        if (serviceAccountJsonStr) {
+            // Priority 1: Read raw JSON from environment variable (Best for Railway production)
+            serviceAccount = JSON.parse(serviceAccountJsonStr);
+        } else if (serviceAccountPath) {
+            // Priority 2: Read from local file path (Best for local development)
+            serviceAccount = require(serviceAccountPath);
+        } else {
+            console.warn('[Firebase] Warning: Neither FIREBASE_SERVICE_ACCOUNT_JSON nor FIREBASE_SERVICE_ACCOUNT_PATH is set. Push notifications will be disabled.');
             return;
         }
-
-        // We use require to load the JSON file synchronously
-        const serviceAccount = require(serviceAccountPath);
 
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount)
