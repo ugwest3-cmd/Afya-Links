@@ -169,7 +169,7 @@ class _PriceOffersScreenState extends State<PriceOffersScreen> {
       // ── Step 3: Open Pesapal checkout in a modal bottom sheet ────────────
       final redirectUrl = payBody['redirect_url'] as String;
       if (mounted) {
-        await PaymentWebViewSheet.show(context, redirectUrl, title: 'Pesapal Payment');
+        await PaymentWebViewSheet.show(context, redirectUrl, orderId, title: 'Pesapal Payment');
       }
 
       // After webview closes — go to Orders tab so they can track status
