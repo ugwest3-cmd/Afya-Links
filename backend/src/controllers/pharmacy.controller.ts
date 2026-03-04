@@ -282,7 +282,7 @@ export const getInboxOrders = async (req: AuthRequest, res: Response): Promise<v
         // Step 1: Fetch orders (no joins — avoids FK/RLS issues)
         const { data: orders, error } = await supabase
             .from('orders')
-            .select('id, status, payment_status, subtotal, delivery_fee, total_payable, order_code, delivery_address, created_at, clinic_id, pharmacy_id, urgent')
+            .select('*')
             .eq('pharmacy_id', pharmacyId)
             .neq('status', 'AWAITING_PAYMENT')
             .order('created_at', { ascending: false })

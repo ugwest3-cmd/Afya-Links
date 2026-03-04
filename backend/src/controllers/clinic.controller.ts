@@ -294,7 +294,7 @@ export const getMyOrders = async (req: AuthRequest, res: Response): Promise<void
         // Step 1: Fetch orders with no joins
         const { data: orders, error } = await supabase
             .from('orders')
-            .select('id, status, payment_status, subtotal, delivery_fee, total_payable, order_code, delivery_address, created_at, clinic_id, pharmacy_id')
+            .select('*')
             .eq('clinic_id', clinicId)
             .order('created_at', { ascending: false })
             .limit(Number(limit));
