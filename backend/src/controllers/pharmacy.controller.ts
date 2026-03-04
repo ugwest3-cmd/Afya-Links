@@ -256,16 +256,25 @@ export const getDashboardStatsPharmacy = async (req: AuthRequest, res: Response)
 
         const { data: orders, error } = await supabase
             .from('orders')
-            .select('status')
+            .select('status, pharmacy_net')
             .eq('pharmacy_id', pharmacyId);
 
         if (error) throw error;
+
+        const completedStatuses = ['DELIVERED', 'COMPLETED'];
+        const earningStatuses = ['PAID', 'ACCEPTED', 'PARTIAL', 'READY_FOR_PICKUP', 'ASSIGNED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', ...completedStatuses];
 
         const stats = {
             new: orders.filter(o => o.status === 'PAID').length,
             accepted: orders.filter(o => ['ACCEPTED', 'PARTIAL'].includes(o.status)).length,
             ready_transit: orders.filter(o => ['READY_FOR_PICKUP', 'ASSIGNED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(o.status)).length,
-            completed: orders.filter(o => ['DELIVERED', 'COMPLETED'].includes(o.status)).length,
+            completed: orders.filter(o => completedStatuses.includes(o.status)).length,
+            total_earnings: orders
+                .filter(o => completedStatuses.includes(o.status))
+                .reduce((sum, o) => sum + (Number(o.pharmacy_net) || 0), 0),
+            pending_balance: orders
+                .filter(o => earningStatuses.includes(o.status) && !completedStatuses.includes(o.status))
+                .reduce((sum, o) => sum + (Number(o.pharmacy_net) || 0), 0),
         };
 
         res.status(200).json({ success: true, stats });
