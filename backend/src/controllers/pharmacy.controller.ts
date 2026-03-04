@@ -256,7 +256,7 @@ export const getDashboardStatsPharmacy = async (req: AuthRequest, res: Response)
 
         const { data: orders, error } = await supabase
             .from('orders')
-            .select('status, pharmacy_net')
+            .select('status, pharmacy_net, payout_status')
             .eq('pharmacy_id', pharmacyId);
 
         if (error) throw error;
@@ -270,10 +270,17 @@ export const getDashboardStatsPharmacy = async (req: AuthRequest, res: Response)
             ready_transit: orders.filter(o => ['READY_FOR_PICKUP', 'ASSIGNED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(o.status)).length,
             completed: orders.filter(o => completedStatuses.includes(o.status)).length,
             total_earnings: orders
-                .filter(o => completedStatuses.includes(o.status))
+                .filter(o => completedStatuses.includes(o.status) && o.payout_status === 'PAID')
                 .reduce((sum, o) => sum + (Number(o.pharmacy_net) || 0), 0),
             pending_balance: orders
-                .filter(o => earningStatuses.includes(o.status) && !completedStatuses.includes(o.status))
+                .filter(o => {
+                    const isCompleted = completedStatuses.includes(o.status);
+                    const isEarning = earningStatuses.includes(o.status);
+                    // Pending if: Not completed yet OR completed but not formally paid out
+                    if (isCompleted && o.payout_status !== 'PAID') return true;
+                    if (isEarning && !isCompleted) return true;
+                    return false;
+                })
                 .reduce((sum, o) => sum + (Number(o.pharmacy_net) || 0), 0),
         };
 
