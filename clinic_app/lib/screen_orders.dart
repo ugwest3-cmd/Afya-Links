@@ -272,7 +272,21 @@ class _OrdersScreenState extends State<OrdersScreen> {
                             final o = _filteredOrders[i];
                             final status = o['status'] ?? 'PENDING';
                             final color = _statusColor(status);
-                            final id = o['display_id'] ?? o['id'] ?? '#${i + 1}';
+                            // Build short display ID from UUID (backend doesn't send display_id)
+                            final rawId = o['id']?.toString() ?? '';
+                            final id = o['display_id'] ?? (rawId.length >= 8 ? '#${rawId.substring(0, 8).toUpperCase()}' : '#${i + 1}');
+                            // Build items summary string from the list returned by backend
+                            final itemsList = o['items'] as List?;
+                            final itemsSummary = itemsList != null && itemsList.isNotEmpty
+                                ? itemsList.map((it) => '${it['drug_name'] ?? ''} × ${it['quantity'] ?? ''}').join(', ')
+                                : (o['items_summary'] ?? '');
+                            // Date: backend sends 'created_at', not 'date'
+                            final rawDate = o['created_at']?.toString() ?? o['date']?.toString() ?? '';
+                            String displayDate = rawDate;
+                            if (rawDate.length >= 10) displayDate = rawDate.substring(0, 10);
+                            // Pharmacy name from joined object
+                            final pharmObj = o['pharmacy'];
+                            final pharmName = pharmObj is Map ? pharmObj['name'] ?? '' : '';
                             return Container(
                               margin: const EdgeInsets.only(bottom: 12),
                               decoration: BoxDecoration(
@@ -307,9 +321,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                       ],
                                     ),
                                     const SizedBox(height: 8),
-                                    Text(o['items'] ?? '', style: const TextStyle(color: Colors.black87, fontSize: 13)),
+                                    if (pharmName.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(bottom: 4),
+                                        child: Row(children: [
+                                          const Icon(Icons.local_pharmacy_outlined, size: 12, color: Colors.grey),
+                                          const SizedBox(width: 4),
+                                          Text(pharmName, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                                        ]),
+                                      ),
+                                    Text(itemsSummary, style: const TextStyle(color: Colors.black87, fontSize: 13)),
                                     const SizedBox(height: 4),
-                                    Text(o['date'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                                    Text(displayDate, style: const TextStyle(color: Colors.grey, fontSize: 11)),
                                     if (status == 'AWAITING_PAYMENT') ...[
                                       const SizedBox(height: 12),
                                       SizedBox(

@@ -117,7 +117,7 @@ export const respondToOrder = async (req: AuthRequest, res: Response): Promise<v
             return;
         }
 
-        if (order.status !== 'PAID_READY') {
+        if (order.status !== 'PAID') {
             res.status(400).json({ success: false, message: `Order is already ${order.status}` });
             return;
         }
@@ -262,7 +262,7 @@ export const getDashboardStatsPharmacy = async (req: AuthRequest, res: Response)
         if (error) throw error;
 
         const stats = {
-            new: orders.filter(o => o.status === 'PAID_READY').length,
+            new: orders.filter(o => o.status === 'PAID').length,
             accepted: orders.filter(o => ['ACCEPTED', 'PARTIAL'].includes(o.status)).length,
             ready_transit: orders.filter(o => ['READY_FOR_PICKUP', 'ASSIGNED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(o.status)).length,
             completed: orders.filter(o => ['DELIVERED', 'COMPLETED'].includes(o.status)).length,
