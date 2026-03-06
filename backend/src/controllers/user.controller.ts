@@ -301,8 +301,11 @@ export const getMyDeliveries = async (req: AuthRequest, res: Response): Promise<
                     order_code,
                     delivery_address,
                     status,
+                    total_amount,
                     pharmacy_id,
-                    clinic_id
+                    clinic_id,
+                    pharmacy:pharmacy_profiles!orders_pharmacy_id_fkey(business_name, address),
+                    clinic:clinic_profiles!orders_clinic_id_fkey(business_name, address)
                 )
             `)
             .eq('driver_id', userId)
@@ -310,7 +313,17 @@ export const getMyDeliveries = async (req: AuthRequest, res: Response): Promise<
 
         if (error) throw error;
 
-        res.status(200).json({ success: true, deliveries });
+        // Flatten the relation so the Flutter app can easily read it
+        const formattedDeliveries = deliveries?.map(d => ({
+            ...d,
+            order: {
+                ...d.orders,
+                pharmacy: Array.isArray(d.orders?.pharmacy) ? d.orders?.pharmacy[0] : d.orders?.pharmacy,
+                clinic: Array.isArray(d.orders?.clinic) ? d.orders?.clinic[0] : d.orders?.clinic,
+            }
+        }));
+
+        res.status(200).json({ success: true, deliveries: formattedDeliveries });
     } catch (e: any) {
         res.status(500).json({ success: false, message: e.message });
     }

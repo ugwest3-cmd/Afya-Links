@@ -15,7 +15,19 @@ export const getOrderById = async (req: AuthRequest, res: Response): Promise<voi
         // Fetch Order
         const { data: order, error } = await supabase
             .from('orders')
-            .select('*')
+            .select(`
+                *,
+                order_items (
+                    id,
+                    product_id,
+                    quantity,
+                    price_at_time,
+                    products (
+                        name,
+                        description
+                    )
+                )
+            `)
             .eq('id', id)
             .single();
 
