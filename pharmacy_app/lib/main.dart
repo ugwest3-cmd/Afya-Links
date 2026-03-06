@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'login.dart';
 import 'pharm_main_shell.dart';
+import 'fcm_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  await FCMService.initialize();
+
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('token');
   final name = prefs.getString('pharmacyName') ?? 'AfyaLinks Pharmacy';

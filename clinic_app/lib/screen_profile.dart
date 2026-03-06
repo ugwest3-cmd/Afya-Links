@@ -295,8 +295,100 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }),
     );
+  Future<void> _showUpdateSupplyTownsDialog() async {
+    final List<String> availableTowns = [
+      'Kampala', 'Entebbe', 'Wakiso', 'Mukono', 'Jinja',
+      'Mbarara', 'Gulu', 'Mbale', 'Arua', 'Masaka',
+      'Lira', 'Hoima', 'Fort Portal', 'Soroti', 'Kabale',
+      'Ntungamo', 'Bushenyi', 'Isingiro'
+    ];
+    
+    List<String> selectedTowns = [];
+    if (_profileData?['preferred_supply_towns'] != null) {
+      selectedTowns = List<String>.from(_profileData!['preferred_supply_towns']);
+    }
+
+    bool isSaving = false;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (context, setDialogState) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Preferred Supply Hubs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Select the regions you prefer to buy supplies from:', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: availableTowns.length,
+                    itemBuilder: (context, index) {
+                      final town = availableTowns[index];
+                      final isSelected = selectedTowns.contains(town);
+                      return CheckboxListTile(
+                        title: Text(town),
+                        value: isSelected,
+                        activeColor: const Color(0xFF0D6EFD),
+                        onChanged: (bool? value) {
+                          setDialogState(() {
+                            if (value == true) {
+                              selectedTowns.add(town);
+                            } else {
+                              selectedTowns.remove(town);
+                            }
+                          });
+                        },
+                      );
+                    },
+                  ),
+                ),
+                if (isSaving) const Padding(padding: EdgeInsets.only(top: 12), child: Center(child: CircularProgressIndicator())),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      setDialogState(() => isSaving = true);
+                      try {
+                        final res = await ApiService.updateProfilePreferences({
+                          'preferred_supply_towns': selectedTowns,
+                        });
+                        if (res.statusCode == 200) {
+                          if (mounted) Navigator.pop(ctx);
+                          _fetchProfile();
+                          ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Supply hubs updated successfully')));
+                        } else {
+                          ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Failed: ${jsonDecode(res.body)['message']}')));
+                        }
+                      } catch (e) {
+                         ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Network error')));
+                      } finally {
+                        setDialogState(() => isSaving = false);
+                      }
+                    },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D6EFD), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+              child: const Text('Save', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      }),
+    );
   }
 
+  @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -346,6 +438,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _InfoTile(icon: Icons.phone, label: 'Phone', value: _profileData?['phone'] ?? 'N/A'),
             _InfoTile(icon: Icons.location_on, label: 'Location', value: _profileData?['address'] ?? 'N/A'),
             _InfoTile(icon: Icons.badge, label: 'License / ID', value: _profileData?['license_number'] ?? 'N/A'),
+            
+            // Show selected supply towns
+            if (_profileData?['preferred_supply_towns'] != null && (_profileData!['preferred_supply_towns'] as List).isNotEmpty)
+              _InfoTile(
+                icon: Icons.local_shipping, 
+                label: 'Preferred Supply Hubs', 
+                value: (_profileData!['preferred_supply_towns'] as List).join(', ')
+              )
+            else
+              const _InfoTile(icon: Icons.local_shipping, label: 'Preferred Supply Hubs', value: 'None Selected (Show All)'),
           ],
 
           const SizedBox(height: 24),
@@ -353,6 +455,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // Settings
           _SettingsTile(icon: Icons.upload_file, label: 'Upload Verification Docs', onTap: _uploadDoc),
           _SettingsTile(icon: Icons.edit_location_alt_outlined, label: 'Update Clinic Location', onTap: _showUpdateLocationDialog),
+          _SettingsTile(icon: Icons.map, label: 'Select Preferred Supply Hubs', onTap: _showUpdateSupplyTownsDialog),
           _SettingsTile(icon: Icons.notifications_outlined, label: 'Notification Preferences', onTap: _showNotificationSettings),
           _SettingsTile(icon: Icons.help_outline, label: 'Help & Support', onTap: _launchSupportEmail),
 

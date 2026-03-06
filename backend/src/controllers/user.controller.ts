@@ -246,3 +246,41 @@ export const saveFcmToken = async (req: AuthRequest, res: Response): Promise<voi
         res.status(500).json({ success: false, message: e.message });
     }
 };
+
+export const updateProfilePreferences = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+        const role = req.user?.role;
+
+        if (role === 'CLINIC') {
+            const { preferred_supply_towns } = req.body;
+            if (preferred_supply_towns !== undefined) {
+                const { error } = await supabase
+                    .from('clinic_profiles')
+                    .update({ preferred_supply_towns })
+                    .eq('user_id', userId);
+                if (error) throw error;
+            }
+        } else if (role === 'PHARMACY') {
+            const { supply_areas, preferred_payout_method, payout_details } = req.body;
+
+            const updates: any = {};
+            if (supply_areas !== undefined) updates.supply_areas = supply_areas;
+            if (preferred_payout_method !== undefined) updates.preferred_payout_method = preferred_payout_method;
+            if (payout_details !== undefined) updates.payout_details = payout_details;
+
+            if (Object.keys(updates).length > 0) {
+                const { error } = await supabase
+                    .from('pharmacy_profiles')
+                    .update(updates)
+                    .eq('user_id', userId);
+                if (error) throw error;
+            }
+        }
+
+        res.status(200).json({ success: true, message: 'Profile preferences updated successfully' });
+
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

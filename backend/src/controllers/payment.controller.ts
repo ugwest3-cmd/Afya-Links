@@ -66,6 +66,44 @@ const confirmPaymentByTrackingId = async (trackingId: string, merchantReference:
                     console.error('[Payment Confirm] Failed to update order status:', updateErr);
                 } else {
                     console.log(`[Payment Confirm] ✅ Order ${merchantReference} marked PAID`);
+
+                    // NEW: Update Pharmacy Wallet Balance
+                    try {
+                        // 1. Fetch full order stats
+                        const { data: orderDetails } = await supabase
+                            .from('orders')
+                            .select('subtotal, platform_commission')
+                            .eq('id', merchantReference)
+                            .single();
+
+                        if (orderDetails) {
+                            const subtotal = Number(orderDetails.subtotal) || 0;
+                            const platformCommission = Number(orderDetails.platform_commission) || 0;
+                            const pharmacyEarnings = subtotal - platformCommission;
+
+                            // 2. Fetch current wallet balance or create record
+                            const { data: wallet } = await supabase
+                                .from('pharmacy_wallet')
+                                .select('available_balance')
+                                .eq('pharmacy_id', order.pharmacy_id)
+                                .single();
+
+                            const currentBalance = wallet ? Number(wallet.available_balance) : 0;
+                            const newBalance = currentBalance + pharmacyEarnings;
+
+                            // 3. Upsert wallet balance
+                            await supabase
+                                .from('pharmacy_wallet')
+                                .upsert({
+                                    pharmacy_id: order.pharmacy_id,
+                                    available_balance: newBalance
+                                }, { onConflict: 'pharmacy_id' });
+
+                            console.log(`[Payment Confirm] 💰 Added UGX ${pharmacyEarnings} to Pharmacy ${order.pharmacy_id} wallet.`);
+                        }
+                    } catch (walletErr) {
+                        console.error('[Payment Confirm] Failed to update pharmacy wallet:', walletErr);
+                    }
                 }
 
                 const shortId = merchantReference.slice(0, 8).toUpperCase();

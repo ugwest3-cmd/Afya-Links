@@ -15,6 +15,7 @@ const NAV_ITEMS = [
     { label: 'Notifications', icon: Bell, path: '/notifications', section: 'tools' },
     { label: 'Invoices', icon: FileText, path: '/invoices', section: 'tools' },
     { label: 'Escrow Ledger', icon: DollarSign, path: '/escrow', section: 'tools' },
+    { label: 'Payouts', icon: DollarSign, path: '/payouts', section: 'tools' },
 ];
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
@@ -26,6 +27,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
     '/notifications': { title: 'Broadcast Center', subtitle: 'Send platform-wide alerts to users' },
     '/invoices': { title: 'Invoices', subtitle: 'Track transactions and manage payments' },
     '/escrow': { title: 'Escrow Ledger', subtitle: 'Manage locked and released funds' },
+    '/payouts': { title: 'Pharmacy Payouts', subtitle: 'Review and process withdrawal requests' },
 };
 
 const Sidebar = () => {

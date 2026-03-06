@@ -60,6 +60,16 @@ class ApiService {
     return http.get(Uri.parse('$baseUrl/users/status'), headers: headers);
   }
 
+  /// PUT /api/users/profile/preferences
+  static Future<http.Response> updateProfilePreferences(Map<String, dynamic> data) async {
+    final headers = await _authHeaders();
+    return http.put(
+      Uri.parse('$baseUrl/users/profile/preferences'),
+      headers: headers,
+      body: jsonEncode(data),
+    );
+  }
+
   /// POST /api/users/upload-doc
   static Future<http.Response> uploadVerificationDoc(List<int> fileBytes, String fileName, String docType) async {
     final token = await _getToken();

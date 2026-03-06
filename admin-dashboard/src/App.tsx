@@ -11,6 +11,7 @@ import { Drivers } from './pages/Drivers';
 import { Notifications } from './pages/Notifications';
 import { Invoices } from './pages/Invoices';
 import { Escrow } from './pages/Escrow';
+import { Payouts } from './pages/Payouts';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -39,6 +40,7 @@ const AppRoutes = () => {
         <Route path="notifications" element={<Notifications />} />
         <Route path="invoices" element={<Invoices />} />
         <Route path="escrow" element={<Escrow />} />
+        <Route path="payouts" element={<Payouts />} />
       </Route>
     </Routes>
   );

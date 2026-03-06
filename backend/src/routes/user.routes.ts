@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middlewares/authMiddleware';
 import { upload } from '../middlewares/uploadMiddleware';
-import { setupClinicProfile, setupPharmacyProfile, getProfileStatus, uploadVerificationDoc, updateAddress, getNotifications, markNotificationsRead, saveFcmToken } from '../controllers/user.controller';
+import { setupClinicProfile, setupPharmacyProfile, getProfileStatus, uploadVerificationDoc, updateAddress, getNotifications, markNotificationsRead, saveFcmToken, updateProfilePreferences } from '../controllers/user.controller';
 
 const router = Router();
 
@@ -38,6 +38,11 @@ router.post(
 router.put(
     '/profile/address',
     updateAddress
+);
+
+router.put(
+    '/profile/preferences',
+    updateProfilePreferences
 );
 
 export default router;

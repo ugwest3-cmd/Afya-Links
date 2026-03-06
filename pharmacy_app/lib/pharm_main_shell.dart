@@ -5,6 +5,8 @@ import 'pharm_screen_orders.dart';
 import 'pharm_screen_pricelist.dart';
 import 'pharm_screen_profile.dart';
 import 'pharm_screen_notifications.dart';
+import 'pharm_screen_payouts.dart';
+import 'pharm_screen_notifications.dart';
 
 class PharmMainShell extends StatefulWidget {
   final String pharmacyName;
@@ -18,32 +20,31 @@ class _PharmMainShellState extends State<PharmMainShell> {
   int _currentIndex = 0;
   int _notificationCount = 2;
 
-  final _pageTitles = ['Dashboard', 'Orders Inbox', 'Price List', 'Profile'];
+  final _pageTitles = ['Dashboard', 'Orders', 'Price List', 'Wallet', 'Profile'];
   final _icons = [
     Icons.home_outlined,
     Icons.inbox_outlined,
     Icons.upload_file_outlined,
+    Icons.account_balance_wallet_outlined,
     Icons.person_outline,
   ];
   final _activeIcons = [
     Icons.home_rounded,
     Icons.inbox_rounded,
     Icons.upload_file_rounded,
+    Icons.account_balance_wallet_rounded,
     Icons.person_rounded,
   ];
 
   late final List<Widget> _pages;
 
-  @override
-  void initState() {
-    super.initState();
     _pages = [
       PharmDashboardScreen(pharmacyName: widget.pharmacyName, onViewOrders: () => setState(() => _currentIndex = 1)),
       const PharmOrdersScreen(),
       const PharmPriceListScreen(),
+      const PharmPayoutsScreen(),
       PharmProfileScreen(pharmacyName: widget.pharmacyName),
     ];
-  }
 
   void _openNotifications() {
     setState(() => _notificationCount = 0);
@@ -121,7 +122,7 @@ class _PharmMainShellState extends State<PharmMainShell> {
           child: SizedBox(
             height: 60,
             child: Row(
-              children: List.generate(4, (i) {
+              children: List.generate(5, (i) {
                 final isActive = _currentIndex == i;
                 return Expanded(
                   child: GestureDetector(

@@ -1,0 +1,63 @@
+# Afya Links: Pharmacy Payout & Supply Match Updates
+
+This plan covers the implementation of the new business rules requested for the pharmacy payout logic, the new preferred supply area matching, and SMS sender ID defaults.
+
+## User Review Required
+> [!IMPORTANT]
+> - Are the `preferred_supply_towns` and `supply_areas` meant to be simple comma-separated strings or arrays of strings? For this MVP, I plan to store them as `TEXT[]` arrays in the database to allow multiple area selections easily.
+> - For SMS, the code `at.SMS.send({ to, message })` already omits a `from` key, meaning Africa's Talking defaults to the shared origin. This appears to be correct out-of-the-box unless there's another place SMS gets triggered?
+
+## Proposed Changes
+
+### Database Migrations
+We will create a new SQL migration file (`supabase/06_pharmacy_payouts_and_supply.sql`) covering:
+- **`pharmacy_wallet` table**: `pharmacy_id`, `available_balance`, `lifetime_payouts`, `updated_at`.
+- **`payout_requests` table**: `id`, `pharmacy_id`, `amount`, `payment_method`, `payment_details` (JSON), `status` (PENDING/PAID/REJECTED), `created_at`.
+- **`clinic_profiles` table alterations**: Add `preferred_supply_towns` `TEXT[]`.
+- **`pharmacy_profiles` table alterations**: Add `supply_areas` `TEXT[]`, `preferred_payout_method` `VARCHAR`, `payout_details` `JSONB`.
+
+---
+
+### Backend Components
+
+#### [MODIFY] [backend/src/controllers/payment.controller.ts](file:///c:/Users/Fix/Desktop/Afya%20Links/backend/src/controllers/payment.controller.ts)
+- In [confirmPaymentByTrackingId](file:///c:/Users/Fix/Desktop/Afya%20Links/backend/src/controllers/payment.controller.ts#10-107): After successful status update to `PAID`, fetch the calculated `platform_commission` on the order and compute the pharmacy earnings.
+- Upsert to `pharmacy_wallet` using an RPC call or direct update to increment `available_balance`.
+
+#### [NEW] `backend/src/controllers/payout.controller.ts`
+- `requestPayout`: Pharmacy endpoint. Validates `$balance >= 500_000` UGX, checks for 24-hour cooldown using `created_at` of last request, deducts balance, inserts a `PENDING` request, and emails admin.
+- `getPayoutHistory`: Pharmacy endpoint. Fetches their past payout requests.
+
+#### [MODIFY] `backend/src/routes/pharmacyRoutes.ts`
+- Add routes for `GET /wallet`, `POST /payout`, `GET /payouts`.
+
+#### [MODIFY] [backend/src/controllers/admin.controller.ts](file:///c:/Users/Fix/Desktop/Afya%20Links/backend/src/controllers/admin.controller.ts)
+- Add `getPayoutRequests`: Returns all requests, grouping high balance alerts (Level 1: >= 500k, Level 2: >= 1m).
+- Add `markPayoutPaid`: Admin endpoint to update `payout_requests` to `PAID`, generating a simulated invoice/history entry.
+
+#### [MODIFY] `backend/src/routes/adminRoutes.ts`
+- Add `/payouts` and `/payouts/:id/pay` endpoints.
+
+#### [MODIFY] [backend/src/controllers/clinic.controller.ts](file:///c:/Users/Fix/Desktop/Afya%20Links/backend/src/controllers/clinic.controller.ts) & [pharmacy.controller.ts](file:///c:/Users/Fix/Desktop/Afya%20Links/backend/src/controllers/pharmacy.controller.ts)
+- **Profile Updates**: Allow submitting `preferred_supply_towns` (for clinics) and `supply_areas` / `preferred_payout_method` / `payout_details` (for pharmacies).
+- **Matching Logic**: Update the pharmacy listing endpoint (used by clinics) to fetch pharmacies where there's an intersection between `clinic.preferred_supply_towns` and `pharmacy.supply_areas`.
+
+#### [MODIFY] [backend/src/utils/sms.ts](file:///c:/Users/Fix/Desktop/Afya%20Links/backend/src/utils/sms.ts)
+- Confirm removal of any hardcoded Sender ID to ensure fallback to Africa's Talking shared sender.
+
+---
+
+## Verification Plan
+
+### Automated/API Verification
+- Use `curl` or Postman scripts (or a temporary test file) to:
+  1. Trigger an order payment and verify `pharmacy_wallet` balance increments appropriately.
+  2. Attempt to `requestPayout` with < 500k (expect failure), and >= 500k (expect success).
+  3. Validate the 24-hour rate limit on payout requests.
+  4. Fetch pharmacies for a clinic with "Mbarara" vs another without it to ensure correct supply filtering.
+
+### Manual Verification
+- Deploy database migrations.
+- Log into Pharmacy App: Update profile with `supply_areas` and payout method.
+- Log into Clinic App: Update profile with `preferred_supply_towns`. Create an order and pay.
+- Log into Admin Dashboard: See the Payout request, trigger 'Mark as Paid', ensuring the pharmacy wallet balance adjusts correctly.

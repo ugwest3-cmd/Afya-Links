@@ -15,9 +15,9 @@ import {
     resolveDispute,
     getDriverRoutes,
     upsertDriverRoute,
-    deleteDriverRoute,
-    markPayoutPaid
+    deleteDriverRoute
 } from '../controllers/admin.controller';
+import { adminGetPayoutRequests, adminGetPayoutAlerts, adminMarkPayoutPaid } from '../controllers/payout.controller';
 import { adminConfirmPayment, adminCheckPesapalStatus } from '../controllers/payment.controller';
 
 const router = Router();
@@ -39,7 +39,11 @@ router.post('/invoices/:id/verify', verifyPayment);
 // Escrow Management
 router.get('/escrow', getEscrowLedger);
 router.post('/escrow/resolve', resolveDispute);
-router.post('/escrow/:id/mark-paid', markPayoutPaid);
+
+// Payout Management
+router.get('/payouts', adminGetPayoutRequests);
+router.get('/payout-alerts', adminGetPayoutAlerts);
+router.post('/payouts/:id/pay', adminMarkPayoutPaid);
 
 // Clinic-Driver Route Assignments
 router.get('/driver-routes', getDriverRoutes);

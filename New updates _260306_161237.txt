@@ -1,0 +1,130 @@
+Afya Links – Pharmacy Payout Logic
+1. Money Flow
+• Clinic places order.
+• Clinic pays via Pesapal checkout.
+• Payment goes to Afya Links merchant account.
+• System records pharmacy earnings internally.
+Example:
+Order total: 100,000 Platform commission: 10% Pharmacy earnings: 90,000 
+The 90,000 is added to pharmacy wallet balance.
+2. Pharmacy Wallet System
+Create a wallet ledger for every pharmacy.
+Table: pharmacy_wallet
+fielddescriptionpharmacy_idpharmacy owneravailable_balancewithdrawable balancepending_balanceawaiting confirmationtotal_paid_outlifetime payouts 
+3. Minimum Withdrawal Rule
+Pharmacies cannot request payout until balance ≥ 500,000 UGX
+Logic:
+IF balance >= 500000 Enable "Request Payout" button ELSE Disable button 
+4. Payout Request Flow
+When pharmacy clicks Request Payout:
+• System creates payout request
+Table: payout_requests
+fieldexampleid10021pharmacy_id33amount520000payment_methodmobile_moneystatuspendingcreated_attimestamp 
+5. Email Notification to You
+Immediately after request:
+Send email to admin.
+Example:
+Subject: New Pharmacy Payout Request Pharmacy: Mbarara Drug House Amount: UGX 520,000 Preferred Method: Mobile Money Phone: +2567xxxxxxx Please review and process payout. 
+Trigger:
+payout_request.created → send admin email 
+6. Admin Dashboard Alerts
+Admin panel should show two payout indicators.
+Level 1 Alert
+When pharmacy balance ≥ 500k
+Eligible for payout 
+Level 2 Alert
+When pharmacy balance ≥ 1,000,000
+Highlight:
+High Balance Account 
+This helps you avoid holding too much supplier money.
+7. Payment Method Collection at Sign-Up
+During pharmacy registration ask:
+Preferred payout method
+Options:
+Mobile Money Bank Transfer Cash Pickup 
+If Mobile Money
+Fields:
+Phone number Network (MTN / Airtel) Account name 
+If Bank
+Fields:
+Bank name Account name Account number Branch 
+If Cash
+Fields:
+Pickup town Contact phone 
+8. Admin Pays the Pharmacy
+You send money manually.
+Example:
+MTN MoMo Bank transfer Cash 
+After payment:
+Admin clicks:
+Mark as Paid 
+9. System Updates
+Once marked paid:
+• Deduct wallet balance
+wallet_balance = wallet_balance - payout_amount 
+• Update payout status
+status = completed paid_at = timestamp 
+• Move record to invoice history
+10. Pharmacy Invoice Section
+Pharmacy profile → Payout History
+Example:
+DateAmountMethodStatus2 Mar520,000Mobile MoneyPaid10 Feb610,000Bank TransferPaid 
+This gives financial transparency.
+11. Security Protection (Important)
+To prevent abuse:
+Rule 1
+Pharmacy can only request once every 24 hours.
+Rule 2
+Minimum payout remains:
+500,000 UGX 
+Rule 3
+Admin approval required.
+
+1. Clinic / Drug Shop Sign-Up
+During registration you ask:
+“Where do you usually buy your drugs?”
+Example options:
+• Mbarara wholesalers
+• Kampala wholesalers
+• Kabale wholesalers
+• Other (type location)
+So a clinic in Isingiro might choose:
+Preferred supply town: Mbarara 
+2. Pharmacy / Wholesaler Sign-Up
+Ask wholesalers:
+“Which areas do you normally supply?”
+Example selections:
+• Mbarara
+• Isingiro
+• Ntungamo
+• Bushenyi
+So a pharmacy in Mbarara could choose:
+Supply areas: ✓ Mbarara ✓ Isingiro ✓ Ntungamo 
+Matching Logic
+When a clinic searches suppliers:
+SELECT * FROM pharmacies WHERE supply_area = clinic.preferred_supply_town 
+Example:
+Clinic: Isingiro Preferred town: Mbarara 
+The system shows Mbarara wholesalers that supply Isingiro.
+Why this is strong for Afya Links
+• Matches real behavior of clinics.
+• Avoids complicated GPS or region systems.
+• Keeps the marketplace relevant.
+• Makes delivery routes predictable.
+One improvement I recommend
+Allow multiple selections, because clinics often buy from more than one town.
+Example clinic profile:
+Preferred supply towns: ✓ Mbarara ✓ Kampala 
+Result
+A clinic in Isingiro will naturally see:
+• Mbarara suppliers
+• Kampala suppliers (if selected)
+But not random pharmacies across the country.
+
+Just send SMS normally and do not specify a Sender ID.
+Example API request:
+{ "username": "YOUR_USERNAME", "to": "+2567XXXXXXX", "message": "Your Afya Links order has been confirmed." } 
+If the senderId field is empty, Africa’s Talking automatically sends using their default shared sender.
+What the user sees
+Something like:
+AFRICASTKNG: Your Afya Links order has been confirmed.

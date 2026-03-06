@@ -126,5 +126,29 @@ class ApiService {
     final headers = await _authHeaders();
     return http.post(Uri.parse('$baseUrl/users/notifications/mark-read'), headers: headers);
   }
+
+  /// PUT /api/users/profile/preferences
+  static Future<http.Response> updateProfilePreferences(Map<String, dynamic> data) async {
+    final headers = await _authHeaders();
+    return http.put(
+      Uri.parse('$baseUrl/users/profile/preferences'),
+      headers: headers,
+      body: jsonEncode(data),
+    );
+  }
+
+  // ── Payouts ────────────────────────────────────────────────────────────────
+  
+  /// POST /api/pharmacies/payouts
+  static Future<http.Response> requestPayout() async {
+    final headers = await _authHeaders();
+    return http.post(Uri.parse('$baseUrl/pharmacies/payouts'), headers: headers);
+  }
+
+  /// GET /api/pharmacies/payouts
+  static Future<http.Response> getPayoutHistory() async {
+    final headers = await _authHeaders();
+    return http.get(Uri.parse('$baseUrl/pharmacies/payouts'), headers: headers);
+  }
 }
 

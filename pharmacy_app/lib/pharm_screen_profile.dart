@@ -354,8 +354,214 @@ class _PharmProfileScreenState extends State<PharmProfileScreen> {
         }
       ),
     );
+  Future<void> _showUpdateSupplyAreasDialog() async {
+    final List<String> availableTowns = [
+      'Kampala', 'Entebbe', 'Wakiso', 'Mukono', 'Jinja',
+      'Mbarara', 'Gulu', 'Mbale', 'Arua', 'Masaka',
+      'Lira', 'Hoima', 'Fort Portal', 'Soroti', 'Kabale',
+      'Ntungamo', 'Bushenyi', 'Isingiro'
+    ];
+    
+    List<String> selectedTowns = [];
+    if (_profileData?['supply_areas'] != null) {
+      selectedTowns = List<String>.from(_profileData!['supply_areas']);
+    }
+
+    bool isSaving = false;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (context, setDialogState) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Supply Areas', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Select the regions you can deliver supplies to:', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: availableTowns.length,
+                    itemBuilder: (context, index) {
+                      final town = availableTowns[index];
+                      final isSelected = selectedTowns.contains(town);
+                      return CheckboxListTile(
+                        title: Text(town),
+                        value: isSelected,
+                        activeColor: _primary,
+                        onChanged: (bool? value) {
+                          setDialogState(() {
+                            if (value == true) {
+                              selectedTowns.add(town);
+                            } else {
+                              selectedTowns.remove(town);
+                            }
+                          });
+                        },
+                      );
+                    },
+                  ),
+                ),
+                if (isSaving) const Padding(padding: EdgeInsets.only(top: 12), child: Center(child: CircularProgressIndicator())),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      setDialogState(() => isSaving = true);
+                      try {
+                        final res = await ApiService.updateProfilePreferences({
+                          'supply_areas': selectedTowns,
+                        });
+                        if (res.statusCode == 200) {
+                          if (mounted) Navigator.pop(ctx);
+                          _fetchProfile();
+                          ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Supply areas updated successfully')));
+                        } else {
+                          ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Failed: ${jsonDecode(res.body)['message']}')));
+                        }
+                      } catch (e) {
+                         ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Network error')));
+                      } finally {
+                        setDialogState(() => isSaving = false);
+                      }
+                    },
+              style: ElevatedButton.styleFrom(backgroundColor: _primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+              child: const Text('Save', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      }),
+    );
   }
 
+  Future<void> _showPayoutConfigSheet() async {
+    String selectedMethod = _profileData?['preferred_payout_method'] ?? 'Mobile Money';
+    final Map<String, dynamic> existingDetails = _profileData?['payout_details'] ?? {};
+    
+    final TextEditingController accountNameCtrl = TextEditingController(text: existingDetails['accountName'] ?? '');
+    final TextEditingController accountNoCtrl = TextEditingController(text: existingDetails['accountNumber'] ?? '');
+    final TextEditingController bankNameCtrl = TextEditingController(text: existingDetails['bankName'] ?? '');
+    
+    bool isSaving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(builder: (context, setModalState) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Payout Configuration', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              
+              DropdownButtonFormField<String>(
+                value: selectedMethod,
+                decoration: const InputDecoration(labelText: 'Preferred Payout Method'),
+                items: ['Mobile Money', 'Bank Transfer', 'Cash Collection']
+                    .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) setModalState(() => selectedMethod = val);
+                },
+              ),
+              const SizedBox(height: 16),
+              
+              if (selectedMethod == 'Mobile Money') ...[
+                TextField(
+                  controller: accountNameCtrl,
+                  decoration: const InputDecoration(labelText: 'Registered Name (e.g., John Doe)'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: accountNoCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(labelText: 'Mobile Money Number (e.g., 077...)'),
+                ),
+              ] else if (selectedMethod == 'Bank Transfer') ...[
+                TextField(
+                  controller: bankNameCtrl,
+                  decoration: const InputDecoration(labelText: 'Bank Name'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: accountNameCtrl,
+                  decoration: const InputDecoration(labelText: 'Account Name'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: accountNoCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Account Number'),
+                ),
+              ] else ...[
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                  child: Text('You will collect your payouts in person at the AfyaLinks head office.', style: TextStyle(color: Colors.grey)),
+                )
+              ],
+              
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: isSaving ? null : () async {
+                    setModalState(() => isSaving = true);
+                    
+                    Map<String, dynamic> details = {};
+                    if (selectedMethod == 'Mobile Money') {
+                      details = {'accountName': accountNameCtrl.text, 'accountNumber': accountNoCtrl.text};
+                    } else if (selectedMethod == 'Bank Transfer') {
+                      details = {'bankName': bankNameCtrl.text, 'accountName': accountNameCtrl.text, 'accountNumber': accountNoCtrl.text};
+                    }
+                    
+                    try {
+                      final res = await ApiService.updateProfilePreferences({
+                        'preferred_payout_method': selectedMethod,
+                        'payout_details': details,
+                      });
+                      if (res.statusCode == 200) {
+                        if (mounted) Navigator.pop(ctx);
+                        _fetchProfile();
+                        ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Payout config saved!')));
+                      } else {
+                        ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Failed: ${jsonDecode(res.body)['message']}')));
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Network Error')));
+                    } finally {
+                      setModalState(() => isSaving = false);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: _primary),
+                  child: isSaving ? const CircularProgressIndicator(color: Colors.white) : const Text('Save Configuration', style: TextStyle(color: Colors.white)),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      }),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -434,6 +640,17 @@ class _PharmProfileScreenState extends State<PharmProfileScreen> {
               _InfoRow(Icons.phone_rounded, 'Contact', _profileData?['phone'] ?? 'N/A'),
               const _Divider(),
               _InfoRow(Icons.badge_rounded, 'License No.', _profileData?['license_number'] ?? 'N/A'),
+              
+              if (_profileData?['supply_areas'] != null && (_profileData!['supply_areas'] as List).isNotEmpty) ...[
+                const _Divider(),
+                _InfoRow(Icons.local_shipping_rounded, 'Supply Areas', (_profileData!['supply_areas'] as List).join(', ')),
+              ] else ...[
+                const _Divider(),
+                const _InfoRow(Icons.local_shipping_rounded, 'Supply Areas', 'Not Set (Available Everywhere)'),
+              ],
+              
+              const _Divider(),
+              _InfoRow(Icons.payments_rounded, 'Payout Method', _profileData?['preferred_payout_method'] ?? 'Not Set'),
             ]),
           ],
           const SizedBox(height: 14),
@@ -447,6 +664,10 @@ class _PharmProfileScreenState extends State<PharmProfileScreen> {
             _SettingsRow(Icons.receipt_long_rounded, 'View Invoices', Colors.blueGrey, () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const PharmInvoicesScreen()));
             }),
+            const _Divider(),
+            _SettingsRow(Icons.account_balance_rounded, 'Payout Configuration', Colors.amber.shade700, _showPayoutConfigSheet),
+            const _Divider(),
+            _SettingsRow(Icons.map_rounded, 'Manage Supply Areas', const Color(0xFF1B5E20), _showUpdateSupplyAreasDialog),
             const _Divider(),
             _SettingsRow(Icons.edit_location_alt_rounded, 'Update Pharmacy Location', const Color(0xFF1B5E20), _showUpdateLocationDialog),
             const _Divider(),
