@@ -12,5 +12,17 @@ api.interceptors.request.use((config) => {
     }
     return config;
 });
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401 && error.response?.data?.message?.includes('expired token')) {
+            // Global handling for expired token
+            localStorage.removeItem('afyalinks_admin_token');
+            localStorage.removeItem('afyalinks_admin_user');
+            window.location.href = '/login';
+        }
+        return Promise.reject(error);
+    }
+);
 
 export default api;
