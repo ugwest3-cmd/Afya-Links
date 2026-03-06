@@ -12,6 +12,7 @@ import { Notifications } from './pages/Notifications';
 import { Invoices } from './pages/Invoices';
 import { Escrow } from './pages/Escrow';
 import { Payouts } from './pages/Payouts';
+import { Settings } from './pages/Settings';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -41,6 +42,7 @@ const AppRoutes = () => {
         <Route path="invoices" element={<Invoices />} />
         <Route path="escrow" element={<Escrow />} />
         <Route path="payouts" element={<Payouts />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
     </Routes>
   );

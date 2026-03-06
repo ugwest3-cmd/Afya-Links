@@ -15,7 +15,9 @@ import {
     resolveDispute,
     getDriverRoutes,
     upsertDriverRoute,
-    deleteDriverRoute
+    deleteDriverRoute,
+    getSystemSettings,
+    updateSystemSettings
 } from '../controllers/admin.controller';
 import { adminGetPayoutRequests, adminGetPayoutAlerts, adminMarkPayoutPaid } from '../controllers/payout.controller';
 import { adminConfirmPayment, adminCheckPesapalStatus } from '../controllers/payment.controller';
@@ -53,5 +55,9 @@ router.delete('/driver-routes/:clinic_id', deleteDriverRoute);
 // Payment Diagnostics & Manual Override
 router.post('/payments/confirm', adminConfirmPayment);
 router.get('/payments/status/:tracking_id', adminCheckPesapalStatus);
+
+// System Settings
+router.get('/settings', getSystemSettings);
+router.post('/settings', updateSystemSettings);
 
 export default router;
