@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares/authMiddleware';
 import { supabase } from '../config/supabase';
+import { sendNotification } from '../services/notification.service';
 
 // 1. Get Pending Verifications
 export const getPendingVerifications = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -9,8 +10,8 @@ export const getPendingVerifications = async (req: AuthRequest, res: Response): 
             .from('users')
             .select(`
                 id, name, email, phone, role, is_verified, created_at,
-                pharmacy:pharmacy_profiles(registration_doc_url),
-                clinic:clinic_profiles(business_reg_url)
+                pharmacy: pharmacy_profiles(registration_doc_url),
+                clinic: clinic_profiles(business_reg_url)
             `)
             .eq('is_verified', false);
 
@@ -54,7 +55,6 @@ export const getPendingVerifications = async (req: AuthRequest, res: Response): 
 // 1.2 Get All Orders
 export const getAllOrders = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        // Fetch all orders
         const { data: orders, error } = await supabase
             .from('orders')
             .select('*')
@@ -68,7 +68,7 @@ export const getAllOrders = async (req: AuthRequest, res: Response): Promise<voi
     }
 }
 
-// 1.5 Get All Users (for management)
+// 1.5 Get All Users
 export const getAllUsers = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { data: users, error } = await supabase
@@ -88,7 +88,6 @@ export const getAllUsers = async (req: AuthRequest, res: Response): Promise<void
 export const approveUser = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { id: targetUserId } = req.params;
-
         const { error } = await supabase
             .from('users')
             .update({ is_verified: true })
@@ -102,17 +101,15 @@ export const approveUser = async (req: AuthRequest, res: Response): Promise<void
     }
 }
 
-// 2.5 Add User Manually (Admin override)
+// 2.5 Add User Manually
 export const addUser = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { phone, role, name, email } = req.body;
-
         if (!phone || !role) {
             res.status(400).json({ success: false, message: 'Phone and role are required' });
             return;
         }
 
-        // Check if user already exists
         const { data: existingUser } = await supabase
             .from('users')
             .select('id')
@@ -138,11 +135,10 @@ export const addUser = async (req: AuthRequest, res: Response): Promise<void> =>
     }
 }
 
-// 2.5.1 Delete User (Admin override)
+// 2.5.1 Delete User
 export const deleteUser = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { id: targetUserId } = req.params;
-
         const { error } = await supabase
             .from('users')
             .delete()
@@ -162,7 +158,6 @@ export const updateDriverProfile = async (req: AuthRequest, res: Response): Prom
         const { id: driverId } = req.params;
         const { region, available_hours } = req.body;
 
-        // Ensure user is actually a driver
         const { data: driverInfo } = await supabase
             .from('users')
             .select('role')
@@ -176,11 +171,7 @@ export const updateDriverProfile = async (req: AuthRequest, res: Response): Prom
 
         const { error } = await supabase
             .from('driver_profiles')
-            .upsert({
-                user_id: driverId,
-                region,
-                available_hours
-            }, { onConflict: 'user_id' });
+            .upsert({ user_id: driverId, region, available_hours }, { onConflict: 'user_id' });
 
         if (error) throw error;
 
@@ -190,19 +181,16 @@ export const updateDriverProfile = async (req: AuthRequest, res: Response): Prom
     }
 }
 
-// 2.7 Send Notification (Admin)
+// 2.7 Send Notification Broadcast
 export const sendNotificationAdmin = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { targetUserId, role, message } = req.body;
-
         if (!message) {
             res.status(400).json({ success: false, message: 'Message content is required' });
             return;
         }
 
-        // Logic to resolve recipients
         let recipients: any[] = [];
-
         if (targetUserId) {
             const { data } = await supabase.from('users').select('id, phone').eq('id', targetUserId).single();
             if (data) recipients.push(data);
@@ -219,26 +207,58 @@ export const sendNotificationAdmin = async (req: AuthRequest, res: Response): Pr
             return;
         }
 
-        // Insert notifications into the database
-        const notifications = recipients.map(r => ({
-            user_id: r.id,
-            title: 'Admin Alert',
-            message: message,
-            is_read: false
-        }));
-
-        if (notifications.length > 0) {
-            const { error: insertError } = await supabase
-                .from('notifications')
-                .insert(notifications);
-
-            if (insertError) {
-                console.error('[Notification Insert Error]', insertError);
-                throw insertError;
-            }
-        }
+        // Send real-time push notifications using NotificationService
+        await Promise.all(recipients.map(r =>
+            sendNotification({
+                userId: r.id,
+                title: 'Admin Alert',
+                body: message,
+                type: 'ADMIN_BROADCAST'
+            }).catch((err: any) => console.error(`[Admin Broadcast] Failed for user ${r.id}:`, err))
+        ));
 
         res.status(200).json({ success: true, message: `Notification broadcasted to ${recipients.length} users` });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+}
+
+// 2.8 Get System Settings
+export const getSystemSettings = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { data, error } = await supabase
+            .from('system_settings')
+            .select('*');
+
+        if (error) throw error;
+
+        const settings: Record<string, any> = {};
+        data?.forEach(row => {
+            settings[row.key] = row.value;
+        });
+
+        res.status(200).json({ success: true, settings });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+}
+
+// 2.9 Update System Settings
+export const updateSystemSettings = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { key, value } = req.body;
+        if (!key || value === undefined) {
+            res.status(400).json({ success: false, message: 'Key and value are required' });
+            return;
+        }
+
+        const { error } = await supabase
+            .from('system_settings')
+            .upsert({ key, value, updated_at: new Date().toISOString() });
+
+        if (error) throw error;
+
+        res.status(200).json({ success: true, message: `Settings for ${key} updated successfully` });
     } catch (e: any) {
         res.status(500).json({ success: false, message: e.message });
     }
@@ -253,54 +273,43 @@ export const getInvoices = async (req: AuthRequest, res: Response): Promise<void
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-
         res.status(200).json({ success: true, invoices });
     } catch (e: any) {
         res.status(500).json({ success: false, message: e.message });
     }
 }
 
-// 4. Verify Payment
+// 4. Verify Payment (Invoice)
 export const verifyPayment = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { id: invoiceId } = req.params;
-
         const { error } = await supabase
             .from('invoices')
             .update({ status: 'PAID' })
             .eq('id', invoiceId);
 
         if (error) throw error;
-
         res.status(200).json({ success: true, message: 'Payment verified successfully' });
     } catch (e: any) {
         res.status(500).json({ success: false, message: e.message });
     }
 }
 
+// 5. Escrow Ledger
 export const getEscrowLedger = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { data: orders, error } = await supabase
             .from('orders')
             .select(`
-                id, 
-                order_code,
-                status, 
-                payment_status,
-                payout_status,
-                total_payable,
-                pharmacy_net,
-                driver_net,
-                total_platform_revenue,
-                created_at,
-                pharmacy:users!orders_pharmacy_id_fkey(name),
-                clinic:users!orders_clinic_id_fkey(name)
+                id, order_code, status, payment_status, payout_status, total_payable, 
+                pharmacy_net, driver_net, total_platform_revenue, created_at,
+                pharmacy: users!orders_pharmacy_id_fkey(name),
+                clinic: users!orders_clinic_id_fkey(name)
             `)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
 
-        // Calculate aggregates
         const totalLocked = orders.filter(o => o.status === 'PAID').reduce((sum, o) => sum + (Number(o.total_payable) || 0), 0);
         const totalReleased = orders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + (Number(o.total_payable) || 0), 0);
         const platformRevenue = orders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + (Number(o.total_platform_revenue) || 0), 0);
@@ -318,13 +327,12 @@ export const getEscrowLedger = async (req: AuthRequest, res: Response): Promise<
     } catch (e: any) {
         res.status(500).json({ success: false, message: e.message });
     }
-};
+}
 
+// 6. Resolve Dispute
 export const resolveDispute = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { order_id, resolution_action } = req.body;
-        // resolution_action: 'RELEASE_TO_PHARMACY' | 'REFUND_TO_CLINIC'
-
         if (!order_id || !['RELEASE_TO_PHARMACY', 'REFUND_TO_CLINIC'].includes(resolution_action)) {
             res.status(400).json({ success: false, message: 'Invalid parameters' });
             return;
@@ -351,103 +359,40 @@ export const resolveDispute = async (req: AuthRequest, res: Response): Promise<v
                 status: 'COMPLETED',
                 payout_status: 'INITIATED'
             }).eq('id', order_id);
-        } else if (resolution_action === 'REFUND_TO_CLINIC') {
-            await supabase.from('orders').update({
-                status: 'REFUNDED'
-            }).eq('id', order_id);
+        } else {
+            await supabase.from('orders').update({ status: 'REFUNDED' }).eq('id', order_id);
         }
 
         res.status(200).json({ success: true, message: `Dispute resolved: ${resolution_action}` });
-
     } catch (e: any) {
         res.status(500).json({ success: false, message: e.message });
     }
-};
+}
 
-export const markPayoutPaid = async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-        const { id: order_id } = req.params;
-
-        const { data: order, error } = await supabase
-            .from('orders')
-            .select('id, payout_status')
-            .eq('id', order_id)
-            .single();
-
-        if (error || !order) {
-            res.status(404).json({ success: false, message: 'Order not found' });
-            return;
-        }
-
-        const { error: updateError } = await supabase
-            .from('orders')
-            .update({ payout_status: 'PAID' })
-            .eq('id', order_id);
-
-        if (updateError) throw updateError;
-
-        res.status(200).json({ success: true, message: 'Payout marked as PAID successfully' });
-    } catch (e: any) {
-        res.status(500).json({ success: false, message: e.message });
-    }
-};
-
-// ── Clinic-Driver Route Assignments ──────────────────────────────────────────
-
-/**
- * GET /admin/driver-routes
- * Returns all clinic-driver assignments with clinic and driver names.
- */
+// 7. Route Management
 export const getDriverRoutes = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { data: routes, error } = await supabase
             .from('clinic_driver_routes')
             .select(`
-                id,
-                clinic_id,
-                driver_id,
-                delivery_fee,
-                notes,
-                is_active,
-                created_at,
-                updated_at,
-                clinic:users!clinic_driver_routes_clinic_id_fkey(id, name, phone),
-                driver:users!clinic_driver_routes_driver_id_fkey(id, name, phone)
+                id, clinic_id, driver_id, delivery_fee, notes, is_active, created_at, updated_at,
+                clinic: users!clinic_driver_routes_clinic_id_fkey(id, name, phone),
+                driver: users!clinic_driver_routes_driver_id_fkey(id, name, phone)
             `)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-
         res.status(200).json({ success: true, routes });
     } catch (e: any) {
         res.status(500).json({ success: false, message: e.message });
     }
-};
+}
 
-/**
- * POST /admin/driver-routes
- * Create or update a clinic-driver route assignment.
- * Body: { clinic_id, driver_id, delivery_fee, notes? }
- */
 export const upsertDriverRoute = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { clinic_id, driver_id, delivery_fee, notes } = req.body;
-
         if (!clinic_id || !driver_id || delivery_fee === undefined) {
             res.status(400).json({ success: false, message: 'clinic_id, driver_id, and delivery_fee are required' });
-            return;
-        }
-
-        // Verify clinic and driver exist with correct roles
-        const { data: clinicUser } = await supabase.from('users').select('role').eq('id', clinic_id).single();
-        const { data: driverUser } = await supabase.from('users').select('role').eq('id', driver_id).single();
-
-        if (clinicUser?.role !== 'CLINIC') {
-            res.status(400).json({ success: false, message: 'clinic_id does not belong to a CLINIC user' });
-            return;
-        }
-        if (driverUser?.role !== 'DRIVER') {
-            res.status(400).json({ success: false, message: 'driver_id does not belong to a DRIVER user' });
             return;
         }
 
@@ -464,30 +409,23 @@ export const upsertDriverRoute = async (req: AuthRequest, res: Response): Promis
             .single();
 
         if (error) throw error;
-
         res.status(200).json({ success: true, message: 'Route assignment saved', route });
     } catch (e: any) {
         res.status(500).json({ success: false, message: e.message });
     }
-};
+}
 
-/**
- * DELETE /admin/driver-routes/:clinic_id
- * Remove a clinic-driver route assignment.
- */
 export const deleteDriverRoute = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { clinic_id } = req.params;
-
         const { error } = await supabase
             .from('clinic_driver_routes')
             .delete()
             .eq('clinic_id', clinic_id);
 
         if (error) throw error;
-
         res.status(200).json({ success: true, message: 'Route assignment removed' });
     } catch (e: any) {
         res.status(500).json({ success: false, message: e.message });
     }
-};
+}

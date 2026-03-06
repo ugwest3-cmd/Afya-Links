@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
+import { sendNotification } from '../services/notification.service';
 
 /**
  * USSD Handler for Africa's Talking
@@ -61,6 +62,17 @@ Your phone number ${phone} is not registered as a verified driver.`;
                         await supabase.from('deliveries').update({ pickup_time: new Date() }).eq('order_id', order.id).eq('driver_id', driver.id);
                         await supabase.from('orders').update({ status: 'IN_TRANSIT' }).eq('id', order.id);
                         response = `END Pickup confirmed for ${orderCode}. Stay safe!`;
+
+                        // Notify Clinic
+                        const { data: orderData } = await supabase.from('orders').select('clinic_id, order_code').eq('id', order.id).single();
+                        if (orderData) {
+                            sendNotification({
+                                userId: orderData.clinic_id,
+                                title: '🚚 Order in Transit',
+                                body: `Driver ${driver.name} has picked up your order #${orderData.order_code} and is on the way.`,
+                                type: 'ORDER_IN_TRANSIT'
+                            });
+                        }
                     } else {
                         response = `END Invalid Order Code.`;
                     }
@@ -86,6 +98,23 @@ Your phone number ${phone} is not registered as a verified driver.`;
                         }
 
                         response = `END Delivery confirmed for ${orderCode}. Good job! Airtime reward coming soon.`;
+
+                        // Notify Clinic & Pharmacy
+                        const { data: orderData } = await supabase.from('orders').select('clinic_id, pharmacy_id, order_code').eq('id', order.id).single();
+                        if (orderData) {
+                            sendNotification({
+                                userId: orderData.clinic_id,
+                                title: '📦 Order Delivered',
+                                body: `Your order #${orderData.order_code} has been delivered. Please confirm receipt in the app to release funds.`,
+                                type: 'ORDER_DELIVERED'
+                            });
+                            sendNotification({
+                                userId: orderData.pharmacy_id,
+                                title: '📦 Delivery Complete',
+                                body: `Driver ${driver.name} has confirmed delivery for order #${orderData.order_code}.`,
+                                type: 'ORDER_DELIVERED'
+                            });
+                        }
                     } else {
                         response = `END Invalid Order Code.`;
                     }

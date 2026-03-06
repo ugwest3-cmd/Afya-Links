@@ -170,5 +170,11 @@ class ApiService {
     final headers = await _authHeaders();
     return http.post(Uri.parse('$baseUrl/users/notifications/mark-read'), headers: headers);
   }
+
+  /// GET /api/tracking/order/:id
+  static Future<http.Response> getTrackingInfo(String orderId) async {
+    final headers = await _authHeaders();
+    return http.get(Uri.parse('$baseUrl/tracking/order/$orderId'), headers: headers);
+  }
 }
 

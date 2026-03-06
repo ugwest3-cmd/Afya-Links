@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+
+  html,
+  body {
+    @apply h-full bg-slate-50 text-slate-900 antialiased;
+  }
+}
+
+.primary-gradient {
+  background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+}
+
+.button-primary {
+  @apply flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl font-medium transition-all hover:bg-slate-800 active:scale-95 disabled:opacity-50 disabled:active:scale-100;
+}
+
+.input-field {
+  @apply w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all outline-none;
+}

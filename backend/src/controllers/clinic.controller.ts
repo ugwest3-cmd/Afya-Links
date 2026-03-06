@@ -208,14 +208,25 @@ export const confirmDelivery = async (req: AuthRequest, res: Response): Promise<
 
         if (updateError) throw updateError;
 
-        // Update deliveries dropoff_time
+        // Update deliveries dropoff_time and notify pharmacy
         try {
             await supabase
                 .from('deliveries')
                 .update({ dropoff_time: new Date() })
                 .eq('order_id', orderId);
+
+            // Fetch pharmacy_id for notification
+            const { data: orderData } = await supabase.from('orders').select('pharmacy_id, order_code').eq('id', orderId).single();
+            if (orderData) {
+                sendNotification({
+                    userId: orderData.pharmacy_id,
+                    title: '📦 Delivery Confirmed',
+                    body: `The clinic has confirmed receipt of order #${orderData.order_code}. Funds are being released to your wallet.`,
+                    type: 'DELIVERY_CONFIRMED'
+                });
+            }
         } catch (e) {
-            console.error('Failed to update dropoff time:', e);
+            console.error('Failed to update dropoff time or notify:', e);
         }
 
         res.status(200).json({

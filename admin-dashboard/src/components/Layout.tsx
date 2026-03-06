@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
-    ShieldCheck, Activity, FileText, LogOut, LayoutDashboard,
-    Users, Truck, Bell, Package, Zap, DollarSign
+    ShieldCheck, Activity, LogOut, LayoutDashboard,
+    Users, Truck, Bell, Package, Zap, DollarSign, Settings
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -13,9 +13,9 @@ const NAV_ITEMS = [
     { label: 'Orders', icon: Package, path: '/orders', section: 'operations' },
     { label: 'Drivers', icon: Truck, path: '/drivers', section: 'operations' },
     { label: 'Notifications', icon: Bell, path: '/notifications', section: 'tools' },
-    { label: 'Invoices', icon: FileText, path: '/invoices', section: 'tools' },
     { label: 'Escrow Ledger', icon: DollarSign, path: '/escrow', section: 'tools' },
     { label: 'Payouts', icon: DollarSign, path: '/payouts', section: 'tools' },
+    { label: 'Platform Settings', icon: Settings, path: '/settings', section: 'tools' },
 ];
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
@@ -25,9 +25,9 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
     '/orders': { title: 'Active Orders', subtitle: 'Monitor and manage order logistics' },
     '/drivers': { title: 'Driver Management', subtitle: 'Configure driver regions and availability' },
     '/notifications': { title: 'Broadcast Center', subtitle: 'Send platform-wide alerts to users' },
-    '/invoices': { title: 'Invoices', subtitle: 'Track transactions and manage payments' },
     '/escrow': { title: 'Escrow Ledger', subtitle: 'Manage locked and released funds' },
     '/payouts': { title: 'Pharmacy Payouts', subtitle: 'Review and process withdrawal requests' },
+    '/settings': { title: 'Platform Settings', subtitle: 'Configure global commissions and thresholds' },
 };
 
 const Sidebar = () => {

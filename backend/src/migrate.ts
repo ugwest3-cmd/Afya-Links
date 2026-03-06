@@ -20,6 +20,35 @@ async function runSQL() {
     });
     if (pharmError) console.error('Pharm error:', pharmError);
     else console.log('pharmacy_profiles check complete');
+
+    const { error: settingsError } = await supabase.rpc('exec_sql', {
+        query: `
+            CREATE TABLE IF NOT EXISTS system_settings (
+                key VARCHAR(100) PRIMARY KEY,
+                value JSONB NOT NULL,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            );
+            INSERT INTO system_settings (key, value)
+            VALUES ('commissions', '{"pharmacy_percent": 8, "driver_percent": 15, "min_payout": 500000}')
+            ON CONFLICT (key) DO NOTHING;
+        `
+    });
+    if (settingsError) console.error('Settings error:', settingsError);
+    else console.log('system_settings check complete');
+
+    const { error: locationError } = await supabase.rpc('exec_sql', {
+        query: `
+            CREATE TABLE IF NOT EXISTS driver_locations (
+                driver_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                latitude DOUBLE PRECISION NOT NULL,
+                longitude DOUBLE PRECISION NOT NULL,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            );
+            ALTER TABLE driver_locations ENABLE ROW LEVEL SECURITY;
+        `
+    });
+    if (locationError) console.error('Location error:', locationError);
+    else console.log('driver_locations check complete');
 }
 
 runSQL();

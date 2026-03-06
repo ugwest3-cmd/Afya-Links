@@ -129,15 +129,15 @@ export const assignDriverAndNotify = async (orderId: string, orderCode: string):
         const driverSms = `AfyaLinks: Pickup @ ${pharmacyName}, ${pharmacyAddress}. Drop-off: ${clinicPhone} / ${deliveryAddress}. OrderCode: ${orderCode}.`;
         const pharmacySms = `Driver ${driverName} (${driverPhone}) assigned. Attach order code to parcel.`;
 
-        // Send to Driver
-        await sendSMS([driver.phone], driverSms);
+        // Notify Driver (Push only - replacing SMS)
+        sendNotification({
+            userId: driver.id,
+            title: '🛵 New Delivery Assigned',
+            body: driverSms,
+            type: 'NEW_DELIVERY_ASSIGNED'
+        });
 
-        // Send to Pharmacy (SMS + Push)
-        const pharmacyPhone = pharmacyProfile?.contact_phone || (order.pharmacy as any)?.phone;
-        if (pharmacyPhone) {
-            await sendSMS([pharmacyPhone], pharmacySms);
-        }
-
+        // Notify Pharmacy (Push only)
         sendNotification({
             userId: order.pharmacy_id,
             title: '🛵 Driver Assigned',

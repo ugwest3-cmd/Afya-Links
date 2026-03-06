@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase';
 import { getMessaging } from '../config/firebase';
+import { sendSMS } from '../utils/sms';
 
 interface NotificationPayload {
     userId: string;
@@ -70,5 +71,34 @@ export const sendNotification = async (payload: NotificationPayload) => {
 
     } catch (error) {
         console.error('[NotificationService] Error sending notification:', error);
+    }
+};
+
+/**
+ * Notify all users with the ADMIN role
+ */
+export const notifyAdmins = async (payload: { title: string, body: string, type?: string }) => {
+    try {
+        const { data: admins } = await supabase
+            .from('users')
+            .select('id')
+            .eq('role', 'ADMIN');
+
+        if (!admins || admins.length === 0) {
+            console.log('[NotificationService] No admin users found to notify.');
+            return;
+        }
+
+        console.log(`[NotificationService] Broadcasting to ${admins.length} admins: ${payload.title}`);
+
+        await Promise.all(admins.map(admin =>
+            sendNotification({
+                ...payload,
+                userId: admin.id
+            }).catch(e => console.error(`[NotificationService] Failed to notify admin ${admin.id}:`, e))
+        ));
+
+    } catch (error) {
+        console.error('[NotificationService] Error in notifyAdmins:', error);
     }
 };

@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares/authMiddleware';
 import { supabase } from '../config/supabase';
-import { sendNotification } from '../services/notification.service';
+import { sendNotification, notifyAdmins } from '../services/notification.service';
 
 /**
  * Pharmacy: Request a payout
@@ -83,6 +83,21 @@ export const requestPayout = async (req: AuthRequest, res: Response): Promise<vo
         console.log(`[Email] Subject: New Pharmacy Payout Request from ${profile?.business_name || pharmacyId}. Amount: UGX ${balance}`);
 
         res.status(201).json({ success: true, message: 'Payout requested successfully', payout_request: payoutRequest });
+
+        // Notify Pharmacy (Push only)
+        sendNotification({
+            userId: pharmacyId,
+            title: '💸 Payout Request Received',
+            body: `Your request for UGX ${balance} has been received and is pending admin review.`,
+            type: 'PAYOUT_REQUESTED'
+        });
+
+        // Notify Admins
+        notifyAdmins({
+            title: '📢 New Payout Request',
+            body: `Pharmacy ${profile?.business_name || pharmacyId} has requested a payout of UGX ${balance}.`,
+            type: 'PAYOUT_REQUEST_ADMIN'
+        });
 
     } catch (error: any) {
         console.error('[Payout Request] Error:', error);
@@ -219,6 +234,14 @@ export const adminMarkPayoutPaid = async (req: AuthRequest, res: Response): Prom
         }
 
         res.status(200).json({ success: true, message: 'Payout marked as paid successfully' });
+
+        // Notify Pharmacy
+        sendNotification({
+            userId: request.pharmacy_id,
+            title: '💸 Payout Processed',
+            body: `Your payout of UGX ${request.amount} has been processed. Please check your account.`,
+            type: 'PAYOUT_PAID'
+        });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
     }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'payment_webview_sheet.dart';
 import 'api_service.dart';
+import 'screen_tracking.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -393,19 +394,39 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                     ],
                                     if (status == 'OUT_FOR_DELIVERY' || status == 'IN_TRANSIT' || status == 'READY_FOR_PICKUP' || status == 'ASSIGNED') ...[
                                       const SizedBox(height: 12),
-                                      SizedBox(
-                                        width: double.infinity,
-                                        child: ElevatedButton.icon(
-                                          icon: const Icon(Icons.check_circle_outline, size: 16, color: Colors.white),
-                                          label: const Text('Confirm Delivery & Release Funds', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: _green,
-                                            padding: const EdgeInsets.symmetric(vertical: 10),
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                            elevation: 0,
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: ElevatedButton.icon(
+                                              icon: const Icon(Icons.location_on_outlined, size: 16, color: Colors.white),
+                                              label: const Text('Track', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: _primary,
+                                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                                elevation: 0,
+                                              ),
+                                              onPressed: () {
+                                                Navigator.push(context, MaterialPageRoute(builder: (_) => TrackingScreen(orderId: o['id'] ?? '', orderCode: id)));
+                                              },
+                                            ),
                                           ),
-                                          onPressed: () => _handleConfirmDeliveryRequest(o['id'] ?? ''),
-                                        ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            flex: 2,
+                                            child: ElevatedButton.icon(
+                                              icon: const Icon(Icons.check_circle_outline, size: 16, color: Colors.white),
+                                              label: const Text('Confirm & Release', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: _green,
+                                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                                elevation: 0,
+                                              ),
+                                              onPressed: () => _handleConfirmDeliveryRequest(o['id'] ?? ''),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ],

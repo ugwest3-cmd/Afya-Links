@@ -19,6 +19,8 @@ import clinicRoutes from './routes/clinic.routes';
 import adminRoutes from './routes/admin.routes';
 import ussdRoutes from './routes/ussd.routes';
 import paymentRoutes from './routes/payment.routes';
+import trackingRoutes from './routes/tracking.routes';
+import orderRoutes from './routes/order.routes';
 
 // Health Check Endpoint
 app.get('/health', (req: Request, res: Response) => {
@@ -33,6 +35,8 @@ app.use('/api/clinics', clinicRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/ussd', ussdRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/tracking', trackingRoutes);
+app.use('/api/orders', orderRoutes);
 
 // Error Handling Middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

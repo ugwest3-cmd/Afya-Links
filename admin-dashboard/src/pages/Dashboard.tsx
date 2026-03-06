@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Package, Users, ShieldAlert, FileText, TrendingUp, RefreshCw, Activity } from 'lucide-react';
+import { Package, Users, ShieldAlert, FileText, TrendingUp, RefreshCw, Activity, DollarSign } from 'lucide-react';
 import api from '../utils/api';
 
 interface Stats {
     totalUsers: number;
     totalOrders: number;
     pendingVerifications: number;
-    totalInvoices: number;
+    platformRevenue: number;
     recentOrders: any[];
 }
 
@@ -22,7 +22,7 @@ export const Dashboard = () => {
         totalUsers: 0,
         totalOrders: 0,
         pendingVerifications: 0,
-        totalInvoices: 0,
+        platformRevenue: 0,
         recentOrders: [],
     });
     const [loading, setLoading] = useState(true);
@@ -30,18 +30,17 @@ export const Dashboard = () => {
     const fetchStats = async () => {
         try {
             setLoading(true);
-            const [usersRes, ordersRes, verificationsRes, invoicesRes] = await Promise.all([
+            const [usersRes, ordersRes, verificationsRes] = await Promise.all([
                 api.get('/admin/users'),
                 api.get('/admin/orders'),
                 api.get('/admin/verifications/pending'),
-                api.get('/admin/invoices'),
             ]);
 
             setStats({
                 totalUsers: usersRes.data.users?.length ?? 0,
                 totalOrders: ordersRes.data.orders?.length ?? 0,
                 pendingVerifications: verificationsRes.data.pending_users?.length ?? 0,
-                totalInvoices: invoicesRes.data.invoices?.length ?? 0,
+                platformRevenue: (ordersRes.data.orders ?? []).filter((o: any) => o.status === 'COMPLETED').reduce((sum: number, o: any) => sum + (Number(o.total_platform_revenue) || 0), 0),
                 recentOrders: (ordersRes.data.orders ?? []).slice(0, 5),
             });
         } catch (e) {
@@ -76,9 +75,9 @@ export const Dashboard = () => {
             bg: 'rgba(245,158,11,0.1)',
         },
         {
-            label: 'Total Invoices',
-            value: stats.totalInvoices,
-            icon: FileText,
+            label: 'Platform Revenue',
+            value: `UGX ${stats.platformRevenue.toLocaleString()}`,
+            icon: DollarSign,
             gradient: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
             bg: 'rgba(139,92,246,0.1)',
         },

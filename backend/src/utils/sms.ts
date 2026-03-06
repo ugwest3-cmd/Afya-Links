@@ -17,17 +17,24 @@ const getAT = () => {
  * Send SMS via Africa's Talking
  * @param to Array of E.164 formatted phone numbers (+256...)
  * @param message SMS body text
+ * @param from Optional ShortCode or SenderID
  */
-export const sendSMS = async (to: string[], message: string) => {
+export const sendSMS = async (to: string[], message: string, from?: string) => {
     try {
         const at = getAT();
+
         if (!at) {
             console.warn(`[SMS Mock] No AT API key configured. Would have sent to: ${to.join(', ')} → "${message}"`);
             return { success: true, mocked: true };
         }
 
-        const result = await at.SMS.send({ to, message });
-        console.log('[SMS Sent]', result);
+        const options: any = { to, message };
+        if (from) {
+            options.from = from;
+        }
+
+        const result = await at.SMS.send(options);
+        console.log('[SMS Sent]', JSON.stringify(result, null, 2));
         return { success: true, result };
     } catch (error: any) {
         console.error('[SMS Error]', error.message);

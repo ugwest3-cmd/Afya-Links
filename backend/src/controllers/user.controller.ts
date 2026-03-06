@@ -284,3 +284,34 @@ export const updateProfilePreferences = async (req: AuthRequest, res: Response):
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+export const getMyDeliveries = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+
+        const { data: deliveries, error } = await supabase
+            .from('deliveries')
+            .select(`
+                id,
+                order_id,
+                pickup_time,
+                dropoff_time,
+                orders (
+                    id,
+                    order_code,
+                    delivery_address,
+                    status,
+                    pharmacy_id,
+                    clinic_id
+                )
+            `)
+            .eq('driver_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        res.status(200).json({ success: true, deliveries });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+};

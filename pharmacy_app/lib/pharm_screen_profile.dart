@@ -354,6 +354,8 @@ class _PharmProfileScreenState extends State<PharmProfileScreen> {
         }
       ),
     );
+  }
+
   Future<void> _showUpdateSupplyAreasDialog() async {
     final List<String> availableTowns = [
       'Kampala', 'Entebbe', 'Wakiso', 'Mukono', 'Jinja',

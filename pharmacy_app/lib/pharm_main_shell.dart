@@ -37,7 +37,10 @@ class _PharmMainShellState extends State<PharmMainShell> {
   ];
 
   late final List<Widget> _pages;
-
+  
+  @override
+  void initState() {
+    super.initState();
     _pages = [
       PharmDashboardScreen(pharmacyName: widget.pharmacyName, onViewOrders: () => setState(() => _currentIndex = 1)),
       const PharmOrdersScreen(),
@@ -45,6 +48,7 @@ class _PharmMainShellState extends State<PharmMainShell> {
       const PharmPayoutsScreen(),
       PharmProfileScreen(pharmacyName: widget.pharmacyName),
     ];
+  }
 
   void _openNotifications() {
     setState(() => _notificationCount = 0);

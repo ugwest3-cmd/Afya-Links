@@ -2,7 +2,7 @@ import { Response, Request } from 'express';
 import { AuthRequest } from '../middlewares/authMiddleware';
 import { supabase } from '../config/supabase';
 import { submitOrder, getTransactionStatus } from '../utils/pesapal';
-import { sendNotification } from '../services/notification.service';
+import { sendNotification, notifyAdmins } from '../services/notification.service';
 
 const APP_FRONTEND_URL = process.env.APP_FRONTEND_URL || 'https://afya-links-frontend.vercel.app';
 const BACKEND_URL = process.env.APP_BASE_URL || 'https://afya-links-production.up.railway.app';
@@ -100,6 +100,21 @@ const confirmPaymentByTrackingId = async (trackingId: string, merchantReference:
                                 }, { onConflict: 'pharmacy_id' });
 
                             console.log(`[Payment Confirm] 💰 Added UGX ${pharmacyEarnings} to Pharmacy ${order.pharmacy_id} wallet.`);
+
+                            // 4. Admin Alerts for High Balance
+                            if (newBalance >= 1000000 && currentBalance < 1000000) {
+                                notifyAdmins({
+                                    title: '🚨 High Balance Alert (Level 2)',
+                                    body: `Pharmacy ${order.pharmacy_id} has crossed UGX 1,000,000 in balance.`,
+                                    type: 'HIGH_BALANCE_LEVEL_2'
+                                });
+                            } else if (newBalance >= 500000 && currentBalance < 500000) {
+                                notifyAdmins({
+                                    title: '⚠️ Payout Eligible Alert (Level 1)',
+                                    body: `Pharmacy ${order.pharmacy_id} is now eligible for payout (Balance: UGX ${newBalance}).`,
+                                    type: 'HIGH_BALANCE_LEVEL_1'
+                                });
+                            }
                         }
                     } catch (walletErr) {
                         console.error('[Payment Confirm] Failed to update pharmacy wallet:', walletErr);

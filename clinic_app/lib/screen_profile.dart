@@ -295,6 +295,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }),
     );
+  }
+
   Future<void> _showUpdateSupplyTownsDialog() async {
     final List<String> availableTowns = [
       'Kampala', 'Entebbe', 'Wakiso', 'Mukono', 'Jinja',

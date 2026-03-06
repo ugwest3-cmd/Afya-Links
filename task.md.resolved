@@ -1,0 +1,41 @@
+# Afya Links Project Roadmap
+
+## Current Focus: Major Pivot - Delivery App & SMS Consolidation
+
+### Notification System Update
+- [x] Implement comprehensive in-app push notifications (FCM)
+- [x] Notification logic for Order Lifecycle (Payment, Status, Transit, Delivered)
+- [x] USSD flow notifications (Clinic alerts) -> *Deprecated: Transitioning to Delivery App*
+- [x] Admin alerts (Payout requests, High balances)
+- [x] **SMS Consolidation (OTP Only)**
+    - [x] Audit [backend/src/utils/sms.ts](file:///c:/Users/Fix/Desktop/Afya%20Links/backend/src/utils/sms.ts) for non-OTP calls
+    - [x] Remove SMS notifications for drivers and clinics
+    - [x] Ensure OTP works across all proposed apps
+
+### Admin Panel Refinement (Final Cleanup)
+- [x] Create `system_settings` table & backend endpoints
+- [x] Add Platform Settings page (commissions/payouts)
+- [x] Update Broadcast Center (FCM push notifications)
+- [x] Remove redundant Invoices page & navigation
+- [x] Polish Drivers page (intuitive delivery fees)
+- [x] Update Dashboard metrics (platform revenue)
+
+### Delivery App Development (New Phase)
+- [x] **Planning & Project Setup**
+    - [x] Create implementation plan for Delivery App & Real-Time Tracking
+    - [x] Set up project structure for `delivery-app` (Vite / React / Tailwind)
+    - [x] Design OTP-only authentication flow
+- [x] **Core Features**
+    - [x] Driver Dashboard (Assigned Tasks)
+    - [x] Order Details (Pharmacy/Clinic locations)
+    - [x] Status Updates (Pickup/Delivery confirmation)
+    - [x] Integrated real-time tracking (Geolocation reporting)
+- [x] **Real-Time Tracking Implementation**
+    - [x] Backend: Create `driver_locations` table & API endpoints
+    - [x] Delivery App: Implement periodic geolocation reporting hook
+    - [x] Clinic App: Implement map view (Leaflet/WebView) & Track button
+
+## Planned Features
+- [ ] End-to-end testing of OTP-only flows
+- [ ] Manual verification of Delivery App workflows
+- [x] Walkthrough documentation for the new ecosystem

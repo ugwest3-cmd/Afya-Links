@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middlewares/authMiddleware';
 import { upload } from '../middlewares/uploadMiddleware';
-import { setupClinicProfile, setupPharmacyProfile, getProfileStatus, uploadVerificationDoc, updateAddress, getNotifications, markNotificationsRead, saveFcmToken, updateProfilePreferences } from '../controllers/user.controller';
+import { setupClinicProfile, setupPharmacyProfile, getProfileStatus, uploadVerificationDoc, updateAddress, getNotifications, markNotificationsRead, saveFcmToken, updateProfilePreferences, getMyDeliveries } from '../controllers/user.controller';
 
 const router = Router();
 
@@ -12,6 +12,7 @@ router.get('/status', getProfileStatus);
 router.get('/notifications', getNotifications);
 router.post('/notifications/mark-read', markNotificationsRead);
 router.post('/fcm-token', saveFcmToken);
+router.get('/me/deliveries', getMyDeliveries);
 
 router.post(
     '/profile/clinic',
