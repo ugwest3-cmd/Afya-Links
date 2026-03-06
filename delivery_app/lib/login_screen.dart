@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 import 'dashboard_screen.dart';
+import 'registration_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -50,11 +51,29 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString('token', data['token']);
         await prefs.setString('user', jsonEncode(data['user']));
         
+        // Check if profile is complete
+        final statusRes = await ApiService.checkProfileStatus();
+        bool isComplete = false;
+        
+        if (statusRes.statusCode == 200) {
+           final statusData = jsonDecode(statusRes.body)['data'];
+           if (statusData != null && statusData['national_id_number'] != null && statusData['national_id_number'].toString().isNotEmpty) {
+             isComplete = true;
+           }
+        }
+
         if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const DashboardScreen()),
-          );
+          if (isComplete) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const DashboardScreen()),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => RegistrationScreen(phone: _phoneController.text)),
+            );
+          }
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -66,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
         SnackBar(content: Text('Error: $e')),
       );
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middlewares/authMiddleware';
 import { upload } from '../middlewares/uploadMiddleware';
-import { setupClinicProfile, setupPharmacyProfile, getProfileStatus, uploadVerificationDoc, updateAddress, getNotifications, markNotificationsRead, saveFcmToken, updateProfilePreferences, getMyDeliveries } from '../controllers/user.controller';
+import { setupClinicProfile, setupPharmacyProfile, getProfileStatus, uploadVerificationDoc, updateAddress, getNotifications, markNotificationsRead, saveFcmToken, updateProfilePreferences, getMyDeliveries, setupDriverProfile, toggleDriverStatus, getDriverWallet, requestDriverPayout } from '../controllers/user.controller';
 
 const router = Router();
 
@@ -34,7 +34,31 @@ router.post(
     uploadVerificationDoc
 );
 
-// We can add the driver and health worker profile routes here similarly.
+import { multerFields } from '../middlewares/uploadMiddleware'; // Optional, or just ignore file uploads if done as text.
+
+router.post(
+    '/profile/driver',
+    requireRole(['DRIVER']),
+    setupDriverProfile
+);
+
+router.put(
+    '/driver/status',
+    requireRole(['DRIVER']),
+    toggleDriverStatus
+);
+
+router.get(
+    '/driver/wallet',
+    requireRole(['DRIVER']),
+    getDriverWallet
+);
+
+router.post(
+    '/driver/payout',
+    requireRole(['DRIVER']),
+    requestDriverPayout
+);
 
 router.put(
     '/profile/address',

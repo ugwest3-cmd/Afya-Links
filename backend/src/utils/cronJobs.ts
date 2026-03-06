@@ -57,5 +57,52 @@ export const initCronJobs = () => {
         }
     });
 
+    // Scheduled to run every 2 minutes to check for Driver Timeouts (10 mins)
+    cron.schedule('*/2 * * * *', async () => {
+        try {
+            const tenMinsAgo = new Date();
+            tenMinsAgo.setMinutes(tenMinsAgo.getMinutes() - 10);
+
+            // Fetch assigned orders older than 10 mins
+            const { data: timedOutOrders, error } = await supabase
+                .from('orders')
+                .select('id, driver_id, order_code')
+                .eq('status', 'ASSIGNED')
+                .lt('driver_assigned_at', tenMinsAgo.toISOString());
+
+            if (error) throw error;
+            if (!timedOutOrders || timedOutOrders.length === 0) return;
+
+            console.log(`[CRON] Found ${timedOutOrders.length} timed out orders. Reverting...`);
+
+            for (const order of timedOutOrders) {
+                // Delete delivery record
+                await supabase.from('deliveries').delete().eq('order_id', order.id);
+
+                // Reset order status back to pool
+                await supabase.from('orders')
+                    .update({
+                        status: 'READY_FOR_PICKUP',
+                        driver_id: null,
+                        driver_assigned_at: null,
+                        pickup_qr: null,
+                        delivery_qr: null
+                    })
+                    .eq('id', order.id);
+
+                // Notify driver that they lost the job
+                if (order.driver_id) {
+                    await supabase.from('notifications').insert({
+                        user_id: order.driver_id,
+                        title: '⏳ Delivery Timeout',
+                        body: `Order #${order.order_code} was removed from you due to 10 mins inactivity.`
+                    });
+                }
+            }
+        } catch (e) {
+            console.error('[CRON Error] Driver timeout check failed:', e);
+        }
+    });
+
     console.log('Cron jobs initialized.');
 };

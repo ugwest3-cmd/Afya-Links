@@ -28,7 +28,6 @@ class ApiService {
     );
   }
 
-  static Future<http.Response> verifyOtp(String phone, String otp) {
     return http.post(
       Uri.parse('$baseUrl/auth/verify-otp'),
       headers: {'Content-Type': 'application/json'},
@@ -40,7 +39,47 @@ class ApiService {
     );
   }
 
+  // ── Driver Profile & Wallet ──────────────────────────────────────────────
+
+  static Future<http.Response> checkProfileStatus() async {
+    final headers = await _authHeaders();
+    return http.get(Uri.parse('$baseUrl/users/status'), headers: headers);
+  }
+
+  static Future<http.Response> setupDriverProfile(Map<String, dynamic> data) async {
+    final headers = await _authHeaders();
+    return http.post(
+      Uri.parse('$baseUrl/users/profile/driver'),
+      headers: headers,
+      body: jsonEncode(data),
+    );
+  }
+
+  static Future<http.Response> toggleDriverStatus(bool isOnline) async {
+    final headers = await _authHeaders();
+    return http.put(
+      Uri.parse('$baseUrl/users/driver/status'),
+      headers: headers,
+      body: jsonEncode({'is_online': isOnline}),
+    );
+  }
+
+  static Future<http.Response> getDriverWallet() async {
+    final headers = await _authHeaders();
+    return http.get(Uri.parse('$baseUrl/users/driver/wallet'), headers: headers);
+  }
+
+  static Future<http.Response> requestPayout() async {
+    final headers = await _authHeaders();
+    return http.post(Uri.parse('$baseUrl/users/driver/payout'), headers: headers);
+  }
+
   // ── Deliveries ───────────────────────────────────────────────────────────
+
+  static Future<http.Response> getAvailableDeliveries() async {
+    final headers = await _authHeaders();
+    return http.get(Uri.parse('$baseUrl/orders/available'), headers: headers);
+  }
 
   static Future<http.Response> getMyDeliveries() async {
     final headers = await _authHeaders();
@@ -50,6 +89,11 @@ class ApiService {
   static Future<http.Response> getOrderById(String id) async {
     final headers = await _authHeaders();
     return http.get(Uri.parse('$baseUrl/orders/$id'), headers: headers);
+  }
+
+  static Future<http.Response> acceptDelivery(String id) async {
+    final headers = await _authHeaders();
+    return http.post(Uri.parse('$baseUrl/orders/$id/accept'), headers: headers);
   }
 
   static Future<http.Response> confirmPickup(String id) async {

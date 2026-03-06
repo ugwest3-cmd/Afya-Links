@@ -1,0 +1,208 @@
+.
+Afya Links Driver Delivery App – Updated MVP
+1. Driver Registration
+Drivers must create an account before accessing deliveries.
+Required Fields
+Driver enters:
+• Full Name
+• Phone Number (login ID)
+• National ID Number
+• Motorcycle / Vehicle Type
+• License Plate Number
+• Operating Region
+• Preferred Payment Method
+Payment methods:
+• Mobile Money
+• Bank Account
+• Cash
+Additional Payment Fields
+If Mobile Money:
+• Mobile Network
+• Phone Number
+If Bank:
+• Bank Name
+• Account Name
+• Account Number
+2. Driver Verification
+Admin must approve drivers before they can work.
+Driver statuses:
+• Pending Verification
+• Approved
+• Rejected
+Only Approved drivers can go online.
+3. Driver Online / Offline System
+Drivers must manually activate work mode.
+Dashboard toggle:
+Driver Status [ONLINE] / [OFFLINE] 
+Rules:
+ONLINE
+→ Driver receives pickup requests.
+OFFLINE
+→ Driver does not receive orders.
+4. Driver Dashboard
+Main screen sections.
+Welcome Header
+Driver name displayed.
+Earnings Overview
+Displays:
+• Today's Earnings
+• Total Earnings
+Example:
+Today's Earnings UGX 18,000 3 Deliveries 
+Pending Pickups
+List of delivery jobs available.
+Each pickup card shows:
+• Pharmacy Name
+• Pickup Location
+• Delivery Clinic
+• Distance
+• Delivery Fee
+Buttons:
+Accept Pickup Decline 
+5. Order Assignment Logic
+Order flow:
+Clinic places drug order.
+↓
+Pharmacies in that region receive request.
+↓
+Pharmacy accepts order.
+↓
+System generates delivery job.
+↓
+Delivery job sent to online drivers in same region.
+6. Pickup Process
+Step 1 – Driver Accepts Job
+Driver presses:
+Accept Pickup 
+Order becomes:
+Assigned to Driver 
+Other drivers cannot see it.
+Step 2 – Navigate to Pharmacy
+Driver sees:
+• Pharmacy Name
+• Address
+• Phone Number
+• Navigate Button
+Driver presses:
+Start Pickup 
+Step 3 – Pharmacy Confirms Pickup
+Pharmacy generates Pickup QR Code.
+Driver scans code.
+Purpose:
+Confirms drugs were collected.
+Order status becomes:
+Picked Up 
+7. Delivery Process
+Driver proceeds to clinic.
+Driver screen shows:
+• Clinic Name
+• Delivery Address
+• Contact Phone
+• Order Summary
+Driver presses:
+Start Delivery 
+8. Delivery Confirmation
+When driver arrives:
+Clinic generates Delivery QR Code.
+Driver scans code.
+System updates:
+Order Status → Delivered 
+Triggers:
+• Delivery recorded
+• Driver earnings updated
+• Order closed
+9. Driver Earnings System
+Each delivery adds money to driver's balance.
+Example:
+Delivery Fee: UGX 6,000 Platform Fee: UGX 1,000 Driver Earns: UGX 5,000 
+Driver wallet updates.
+10. Driver Wallet
+Driver profile shows wallet balance.
+Example:
+Driver Wallet UGX 23,500 
+Balance increases after each completed delivery.
+11. Payout Request System
+Drivers can request payouts after reaching UGX 10,000.
+Minimum payout threshold:
+UGX 10,000 
+If wallet ≥ 10,000:
+Button becomes active:
+Request Payout 
+12. Payout Request Flow
+Driver presses:
+Request Payout 
+System records:
+Payout Request Driver Name Amount Payment Method Date Status: Pending 
+13. Admin Notification
+When payout request is submitted:
+System sends email notification to admin.
+Email content:
+New Driver Payout Request Driver: John Doe Amount: UGX 45,000 Payment Method: Mobile Money Phone: +2567XXXXXXXX Region: Mbarara 
+Admin manually processes payment.
+14. Admin Payout Processing
+Admin portal → Payouts Section
+Admin sees:
+• Driver Name
+• Phone
+• Amount
+• Payment Method
+• Date Requested
+Admin sends payment manually.
+After payment:
+Admin clicks:
+Mark as Paid 
+System updates payout record.
+15. Driver Payout History
+Driver can view past payouts.
+Example:
+Payout History UGX 40,000 Mobile Money Paid Date: 03 March 2026 
+16. Delivery History
+Driver can see completed deliveries.
+Fields:
+• Order ID
+• Pharmacy
+• Clinic
+• Delivery Fee
+• Delivery Date
+• Status
+Example:
+#ORD-5842 Good Health Pharmacy → Test Clinic UGX 5,000 Completed 
+17. Notifications
+Driver receives notifications for:
+New Pickup Available
+New Pickup Request Good Health Pharmacy 2 km away 
+Pickup Assigned
+Pickup Assigned Successfully 
+Delivery Completed
+Delivery Completed UGX 5,000 added to wallet 
+Payout Sent
+Your payout of UGX 40,000 has been processed 
+18. Region-Based Delivery Filtering
+Drivers only see deliveries in their region.
+Example:
+Driver region:
+Mbarara 
+Driver only receives:
+Mbarara deliveries 
+This solves your earlier issue where:
+Mbarara clinics were seeing Kampala pharmacies.
+19. Security Controls
+Order Timeout
+If driver accepts job but does not move:
+Timeout after 10 minutes 
+Job returns to driver pool.
+Fraud Prevention
+Two confirmations required:
+• Pharmacy QR scan (pickup)
+• Clinic QR scan (delivery)
+This prevents fake deliveries.
+20. Core Database Tables
+System must include:
+Drivers Driver_Verifications Orders Delivery_Jobs Delivery_Status Driver_Earnings Driver_Wallet Driver_Payouts Regions Notifications 
+21. Delivery Status Flow
+Order Created ↓ Pharmacy Accepted ↓ Driver Assigned ↓ Picked Up ↓ In Transit ↓ Delivered 
+Final MVP Objective
+The driver app must deliver three outcomes only:
+• Fast drug delivery between pharmacies and clinics
+• Accurate driver earnings tracking
+• Simple manual payout system

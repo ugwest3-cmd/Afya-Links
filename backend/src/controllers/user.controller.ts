@@ -100,6 +100,9 @@ export const getProfileStatus = async (req: AuthRequest, res: Response): Promise
         } else if (user.role === 'PHARMACY') {
             const { data } = await supabase.from('pharmacy_profiles').select('*').eq('user_id', userId).single();
             if (data) profileData = data;
+        } else if (user.role === 'DRIVER') {
+            const { data } = await supabase.from('driver_profiles').select('*').eq('user_id', userId).single();
+            if (data) profileData = data;
         }
 
         res.status(200).json({
@@ -324,6 +327,147 @@ export const getMyDeliveries = async (req: AuthRequest, res: Response): Promise<
         }));
 
         res.status(200).json({ success: true, deliveries: formattedDeliveries });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+};
+
+export const setupDriverProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+        const { national_id_number, vehicle_type, license_plate_number, region, preferred_payout_method, payout_details, name } = req.body;
+
+        if (name) {
+            await supabase.from('users').update({ name }).eq('id', userId);
+        }
+
+        const { error } = await supabase
+            .from('driver_profiles')
+            .upsert({
+                user_id: userId,
+                national_id_number,
+                vehicle_type,
+                license_plate_number,
+                region,
+                preferred_payout_method,
+                payout_details: typeof payout_details === 'string' ? JSON.parse(payout_details) : payout_details
+            });
+
+        if (error) throw error;
+
+        res.status(200).json({ success: true, message: 'Driver profile setup successfully' });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+};
+
+export const toggleDriverStatus = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+        const { is_online } = req.body;
+
+        const { error } = await supabase
+            .from('driver_profiles')
+            .update({ is_online })
+            .eq('user_id', userId);
+
+        if (error) throw error;
+
+        res.status(200).json({ success: true, message: `Driver went ${is_online ? 'ONLINE' : 'OFFLINE'}` });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+};
+
+export const getDriverWallet = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+        const { data: profile, error } = await supabase
+            .from('driver_profiles')
+            .select('wallet_balance')
+            .eq('user_id', userId)
+            .single();
+
+        if (error || !profile) {
+            res.status(404).json({ success: false, message: 'Profile not found' });
+            return;
+        }
+
+        const { data: payouts } = await supabase
+            .from('driver_payouts')
+            .select('*')
+            .eq('driver_id', userId)
+            .order('created_at', { ascending: false });
+
+        const { data: deliveries } = await supabase
+            .from('deliveries')
+            .select('driver_fee_collected')
+            .eq('driver_id', userId);
+
+        const totalEarned = deliveries?.reduce((sum, d) => sum + (d.driver_fee_collected || 0), 0) || 0;
+
+        res.status(200).json({
+            success: true,
+            wallet_balance: profile.wallet_balance,
+            total_earned: totalEarned,
+            payout_history: payouts || []
+        });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+};
+
+export const requestDriverPayout = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+        const MIN_PAYOUT = 10000;
+
+        // Fetch driver's wallet and details
+        const { data: profile, error } = await supabase
+            .from('driver_profiles')
+            .select('wallet_balance, preferred_payout_method, payout_details')
+            .eq('user_id', userId)
+            .single();
+
+        if (error || !profile) {
+            res.status(404).json({ success: false, message: 'Driver profile not found' });
+            return;
+        }
+
+        if (profile.wallet_balance < MIN_PAYOUT) {
+            res.status(400).json({ success: false, message: `Minimum payout is UGX ${MIN_PAYOUT}` });
+            return;
+        }
+
+        // Create payout request
+        const { error: insertError } = await supabase
+            .from('driver_payouts')
+            .insert({
+                driver_id: userId,
+                amount: profile.wallet_balance,
+                payment_method: profile.preferred_payout_method,
+                payment_details: profile.payout_details,
+                status: 'PENDING'
+            });
+
+        if (insertError) throw insertError;
+
+        // Deduct from wallet
+        const { error: updateError } = await supabase
+            .from('driver_profiles')
+            .update({ wallet_balance: 0 })
+            .eq('user_id', userId);
+
+        if (updateError) throw updateError;
+
+        // Create an admin notification instead of sending an email for now
+        await supabase.from('notifications').insert({
+            user_id: userId, // Keep user_id here just as reference, maybe we need an admin role ID, but MVP simply assumes admins read all payout reqs.
+            title: 'New Driver Payout Request',
+            body: `Driver requested UGX ${profile.wallet_balance} via ${profile.preferred_payout_method}.`
+        });
+
+        res.status(200).json({ success: true, message: 'Payout requested successfully' });
     } catch (e: any) {
         res.status(500).json({ success: false, message: e.message });
     }

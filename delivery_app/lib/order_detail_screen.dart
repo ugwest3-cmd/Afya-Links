@@ -86,12 +86,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     try {
       final res = await ApiService.confirmPickup(widget.orderId);
       if (res.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pickup Confirmed!')));
         _loadOrder();
+      } else {
+        final errorMsg = jsonDecode(res.body)['message'] ?? 'Failed to confirm pickup';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg)));
       }
     } catch (e) {
       debugPrint('Error confirming pickup: $e');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -100,13 +105,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     try {
       final res = await ApiService.confirmDelivery(widget.orderId);
       if (res.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Delivery Confirmed!')));
         _loadOrder();
         _stopTracking();
+      } else {
+        final errorMsg = jsonDecode(res.body)['message'] ?? 'Failed to confirm delivery';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg)));
       }
     } catch (e) {
       debugPrint('Error confirming delivery: $e');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 

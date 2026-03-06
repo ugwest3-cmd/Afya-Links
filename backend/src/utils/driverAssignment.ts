@@ -69,10 +69,11 @@ export const assignDriverAndNotify = async (orderId: string, orderCode: string):
                     id, 
                     phone, 
                     name,
-                    driver_profiles(region, available_hours)
+                    driver_profiles!inner(region, available_hours, is_online)
                 `)
                 .eq('role', 'DRIVER')
-                .eq('is_verified', true);
+                .eq('is_verified', true)
+                .eq('driver_profiles.is_online', true);
 
             if (driverError || !drivers || drivers.length === 0) {
                 console.error('No verified drivers available for assignment', driverError);
@@ -82,7 +83,17 @@ export const assignDriverAndNotify = async (orderId: string, orderCode: string):
             const availableDrivers = drivers.filter(d => {
                 const profiles = d.driver_profiles as any;
                 const profile = Array.isArray(profiles) ? profiles[0] : profiles;
-                if (!profile || !profile.available_hours) return true;
+                if (!profile) return false;
+
+                // Simple check: does the driver's region overlap with the delivery address or pharmacy address?
+                const isRegionMatch = profile.region ? (
+                    (order.delivery_address || '').toLowerCase().includes(profile.region.toLowerCase()) ||
+                    (pharmacyProfile?.address || '').toLowerCase().includes(profile.region.toLowerCase())
+                ) : true;
+
+                if (!isRegionMatch) return false;
+
+                if (!profile.available_hours) return true;
                 try {
                     const [startStr, endStr] = profile.available_hours.split('-');
                     const startHour = parseInt(startStr.split(':')[0]);
@@ -94,26 +105,41 @@ export const assignDriverAndNotify = async (orderId: string, orderCode: string):
             });
 
             if (availableDrivers.length === 0) {
-                console.error('No drivers available at this hour');
+                console.error('No online drivers available in the region at this hour');
+                // You could choose to drop the region check here if absolutely needed as a fallback, 
+                // but the MVP says "Drivers only see deliveries in their region."
                 return;
             }
 
-            driver = availableDrivers[0] as { id: string; phone: string; name: string };
+            // We do NOT auto-assign anymore. We just keep it as READY_FOR_PICKUP
+            // and notify all of these valid drivers.
+            const pharmacyName = pharmacyProfile?.business_name || 'Pharmacy';
+            const pharmacyAddress = pharmacyProfile?.address || 'Unknown Address';
+            const broadcastSms = `AfyaLinks: New Pickup @ ${pharmacyName}, ${pharmacyAddress}. Open app to Accept.`;
+
+            // Notify all matched drivers
+            for (const d of availableDrivers) {
+                sendNotification({
+                    userId: d.id,
+                    title: '🛵 New Pickup Available',
+                    body: broadcastSms,
+                    type: 'NEW_DELIVERY_AVAILABLE'
+                });
+            }
+            return; // Driver assignment will be done manually by the driver
         }
 
-        // 3. Create delivery record and update order to ASSIGNED
-        const { error: deliveryError } = await supabase
-            .from('deliveries')
-            .insert([{
-                order_id: order.id,
-                driver_id: driver.id
-            }]);
+        // If we reach here, a driver was pre-assigned manually (rare, but supported)
+        const pickupQr = `QR-PICKUP-${orderCode}`;
+        const deliveryQr = `QR-DELIVER-${orderCode}`;
 
-        if (deliveryError && deliveryError.code !== '23505') { // ignore duplicate key if already assigned
-            console.error('Failed to create delivery record', deliveryError);
-        }
+        const { error: updateError } = await supabase.from('orders').update({
+            status: 'ASSIGNED',
+            pickup_qr: pickupQr,
+            delivery_qr: deliveryQr,
+            driver_assigned_at: new Date().toISOString()
+        }).eq('id', order.id);
 
-        const { error: updateError } = await supabase.from('orders').update({ status: 'ASSIGNED' }).eq('id', order.id);
         if (updateError) {
             console.error('Failed to update order status to ASSIGNED', updateError);
         }
