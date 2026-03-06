@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Package, Users, ShieldAlert, FileText, TrendingUp, RefreshCw, Activity, DollarSign } from 'lucide-react';
+import { Package, Users, ShieldAlert, TrendingUp, RefreshCw, Activity, DollarSign } from 'lucide-react';
 import api from '../utils/api';
 
 interface Stats {
