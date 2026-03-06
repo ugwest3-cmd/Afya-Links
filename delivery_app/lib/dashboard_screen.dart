@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'api_service.dart';
 import 'order_detail_screen.dart';
+import 'notifications_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -45,6 +46,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: const Text('My Deliveries'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_none_rounded),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen())),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: () {

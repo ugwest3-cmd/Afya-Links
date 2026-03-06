@@ -62,6 +62,18 @@ class ApiService {
     return http.post(Uri.parse('$baseUrl/orders/$id/deliver'), headers: headers);
   }
 
+  // ── Notifications ────────────────────────────────────────────────────────
+
+  static Future<http.Response> getNotifications() async {
+    final headers = await _authHeaders();
+    return http.get(Uri.parse('$baseUrl/users/notifications'), headers: headers);
+  }
+
+  static Future<http.Response> markNotificationsRead() async {
+    final headers = await _authHeaders();
+    return http.post(Uri.parse('$baseUrl/users/notifications/read'), headers: headers);
+  }
+
   // ── Tracking ─────────────────────────────────────────────────────────────
 
   static Future<http.Response> updateLocation(double lat, double lng) async {

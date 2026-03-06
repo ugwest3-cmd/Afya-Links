@@ -45,7 +45,7 @@ class MyApp extends StatelessWidget {
           ),
           iconTheme: IconThemeData(color: Color(0xFF111827)),
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           color: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(

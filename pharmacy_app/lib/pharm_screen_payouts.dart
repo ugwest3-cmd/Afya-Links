@@ -66,6 +66,145 @@ class _PharmPayoutsScreenState extends State<PharmPayoutsScreen> {
     }
   }
 
+  Future<void> _showPayoutConfigSheet() async {
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator(color: _primary)),
+    );
+    
+    Map<String, dynamic>? profileData;
+    try {
+      final res = await ApiService.getProfileStatus();
+      if (res.statusCode == 200) profileData = jsonDecode(res.body)['data'];
+    } catch (_) {}
+    
+    if (mounted) Navigator.pop(context); // close loading
+
+    if (profileData == null) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to load payout settings.')));
+      return;
+    }
+
+    String selectedMethod = profileData['preferred_payout_method'] ?? 'Mobile Money';
+    final Map<String, dynamic> existingDetails = profileData['payout_details'] ?? {};
+    
+    final TextEditingController accountNameCtrl = TextEditingController(text: existingDetails['accountName'] ?? '');
+    final TextEditingController accountNoCtrl = TextEditingController(text: existingDetails['accountNumber'] ?? '');
+    final TextEditingController bankNameCtrl = TextEditingController(text: existingDetails['bankName'] ?? '');
+    
+    bool isSaving = false;
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(builder: (context, setModalState) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Payout Configuration', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              
+              DropdownButtonFormField<String>(
+                value: selectedMethod,
+                decoration: const InputDecoration(labelText: 'Preferred Payout Method'),
+                items: ['Mobile Money', 'Bank Transfer', 'Cash Collection']
+                    .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) setModalState(() => selectedMethod = val);
+                },
+              ),
+              const SizedBox(height: 16),
+              
+              if (selectedMethod == 'Mobile Money') ...[
+                TextField(
+                  controller: accountNameCtrl,
+                  decoration: const InputDecoration(labelText: 'Registered Name (e.g., John Doe)'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: accountNoCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(labelText: 'Mobile Money Number (e.g., 077...)'),
+                ),
+              ] else if (selectedMethod == 'Bank Transfer') ...[
+                TextField(
+                  controller: bankNameCtrl,
+                  decoration: const InputDecoration(labelText: 'Bank Name'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: accountNameCtrl,
+                  decoration: const InputDecoration(labelText: 'Account Name'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: accountNoCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Account Number'),
+                ),
+              ] else ...[
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                  child: Text('You will collect your payouts in person at the AfyaLinks head office.', style: TextStyle(color: Colors.grey)),
+                )
+              ],
+              
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: isSaving ? null : () async {
+                    setModalState(() => isSaving = true);
+                    
+                    Map<String, dynamic> details = {};
+                    if (selectedMethod == 'Mobile Money') {
+                      details = {'accountName': accountNameCtrl.text, 'accountNumber': accountNoCtrl.text};
+                    } else if (selectedMethod == 'Bank Transfer') {
+                      details = {'bankName': bankNameCtrl.text, 'accountName': accountNameCtrl.text, 'accountNumber': accountNoCtrl.text};
+                    }
+                    
+                    try {
+                      final res = await ApiService.updateProfilePreferences({
+                        'preferred_payout_method': selectedMethod,
+                        'payout_details': details,
+                      });
+                      if (res.statusCode == 200) {
+                        if (mounted) Navigator.pop(ctx);
+                        ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Payout config saved!')));
+                      } else {
+                        ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Failed: ${jsonDecode(res.body)['message']}')));
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Network Error')));
+                    } finally {
+                      setModalState(() => isSaving = false);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: isSaving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Save Configuration', style: TextStyle(color: Colors.white)),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      }),
+    );
+  }
+
   String _formatCurrency(double val) {
     String s = val.toStringAsFixed(0);
     RegExp reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
@@ -83,6 +222,14 @@ class _PharmPayoutsScreenState extends State<PharmPayoutsScreen> {
         foregroundColor: Colors.black,
         elevation: 0,
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Payout Settings',
+            onPressed: _showPayoutConfigSheet,
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator(color: _primary))
