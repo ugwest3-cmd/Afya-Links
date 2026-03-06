@@ -16,6 +16,7 @@ class _PharmPayoutsScreenState extends State<PharmPayoutsScreen> {
   double _availableBalance = 0;
   List<dynamic> _history = [];
   bool _isRequesting = false;
+  Map<String, dynamic> _stats = {'total_earnings': 0, 'pending_balance': 0};
 
   @override
   void initState() {
@@ -27,15 +28,20 @@ class _PharmPayoutsScreenState extends State<PharmPayoutsScreen> {
     setState(() => _isLoading = true);
     try {
       final res = await ApiService.getPayoutHistory();
+      final statsRes = await ApiService.getDashboardStats();
+
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         if (data['success']) {
-          setState(() {
-            _availableBalance = (data['available_balance'] ?? 0).toDouble();
-            _history = data['data'] ?? [];
-            _isLoading = false;
-          });
-          return;
+          _availableBalance = (data['available_balance'] ?? 0).toDouble();
+          _history = data['data'] ?? [];
+        }
+      }
+
+      if (statsRes.statusCode == 200) {
+        final sData = jsonDecode(statsRes.body);
+        if (sData['success']) {
+          _stats = Map<String, dynamic>.from(sData['stats']);
         }
       }
     } catch (_) {}
@@ -239,6 +245,38 @@ class _PharmPayoutsScreenState extends State<PharmPayoutsScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                // Earnings Summary Card (Moved from Profile)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _EarningItem(
+                          label: 'Total Earned',
+                          value: _stats['total_earnings']?.toString() ?? '0',
+                          color: const Color(0xFF2E7D32),
+                          icon: Icons.account_balance_wallet_rounded,
+                        ),
+                      ),
+                      Container(width: 1, height: 40, color: Colors.grey.shade200),
+                      Expanded(
+                        child: _EarningItem(
+                          label: 'Pending Payout',
+                          value: _stats['pending_balance']?.toString() ?? '0',
+                          color: Colors.orange.shade800,
+                          icon: Icons.hourglass_bottom_rounded,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
                 // Balance Card
                 Container(
                   padding: const EdgeInsets.all(24),
@@ -358,6 +396,45 @@ class _PharmPayoutsScreenState extends State<PharmPayoutsScreen> {
               ],
             ),
           )
+    );
+  }
+}
+
+class _EarningItem extends StatelessWidget {
+  final String label, value;
+  final Color color;
+  final IconData icon;
+
+  const _EarningItem({required this.label, required this.value, required this.color, required this.icon});
+
+  String _formatCurrency(String val) {
+    try {
+      double d = double.parse(val);
+      if (d == 0) return 'UGX 0';
+      String s = d.toStringAsFixed(0);
+      RegExp reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
+      s = s.replaceAllMapped(reg, (Match m) => '${m[1]},');
+      return 'UGX $s';
+    } catch (_) {
+      return 'UGX $val';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 24),
+        const SizedBox(height: 8),
+        Text(
+          _formatCurrency(value),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+        ),
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+        ),
+      ],
     );
   }
 }

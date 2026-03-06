@@ -23,7 +23,6 @@ class _PharmProfileScreenState extends State<PharmProfileScreen> {
 
   bool _isLoading = true;
   Map<String, dynamic>? _profileData;
-  Map<String, dynamic> _stats = {'total_earnings': 0, 'pending_balance': 0};
 
   @override
   void initState() {
@@ -484,44 +483,7 @@ class _PharmProfileScreenState extends State<PharmProfileScreen> {
           ),
           const SizedBox(height: 20),
 
-          // Earnings Summary
-          if (!_isLoading) ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _EarningItem(
-                      label: 'Total Earned',
-                      value: _stats['total_earnings']?.toString() ?? '0',
-                      color: _green,
-                      icon: Icons.account_balance_wallet_rounded,
-                    ),
-                  ),
-                  Container(width: 1, height: 40, color: Colors.grey.shade200),
-                  Expanded(
-                    child: _EarningItem(
-                      label: 'Pending Payout',
-                      value: _stats['pending_balance']?.toString() ?? '0',
-                      color: Colors.orange.shade800,
-                      icon: Icons.hourglass_bottom_rounded,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
-
-          if (_isLoading)
-            const Center(child: CircularProgressIndicator())
-          else ...[
-            // Info section
+          // Info section
             _InfoCard(children: [
               _InfoRow(Icons.business_rounded, 'Business Name', widget.pharmacyName),
               const _Divider(),
@@ -669,42 +631,6 @@ class _Divider extends StatelessWidget {
   Widget build(BuildContext context) => Divider(height: 0, thickness: 0.5, indent: 16, endIndent: 16, color: Colors.grey.shade200);
 }
 
-class _EarningItem extends StatelessWidget {
-  final String label, value;
-  final Color color;
-  final IconData icon;
-
-  const _EarningItem({required this.label, required this.value, required this.color, required this.icon});
-
-  String _formatCurrency(String val) {
-    try {
-      double d = double.parse(val);
-      if (d == 0) return 'UGX 0';
-      String s = d.toStringAsFixed(0);
-      RegExp reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
-      s = s.replaceAllMapped(reg, (Match m) => '${m[1]},');
-      return 'UGX $s';
-    } catch (_) {
-      return 'UGX $val';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 24),
-        const SizedBox(height: 8),
-        Text(
-          _formatCurrency(value),
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: color),
-        ),
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
-        ),
-      ],
-    );
   }
 }
 

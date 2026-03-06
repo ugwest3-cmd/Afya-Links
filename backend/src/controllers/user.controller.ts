@@ -317,7 +317,7 @@ export const getMyDeliveries = async (req: AuthRequest, res: Response): Promise<
         if (error) throw error;
 
         // Flatten the relation so the Flutter app can easily read it
-        const formattedDeliveries = deliveries?.map(d => ({
+        const formattedDeliveries = deliveries?.map((d: any) => ({
             ...d,
             order: {
                 ...d.orders,
@@ -366,15 +366,25 @@ export const toggleDriverStatus = async (req: AuthRequest, res: Response): Promi
         const userId = req.user?.id;
         const { is_online } = req.body;
 
-        const { error } = await supabase
-            .from('driver_profiles')
-            .update({ is_online })
-            .eq('user_id', userId);
+        console.log(`[DriverStatus] Attempting to set driver ${userId} to ${is_online ? 'ONLINE' : 'OFFLINE'}`);
 
-        if (error) throw error;
+        // We use upsert to ensure that even if the profile row is missing, it gets created
+        // though normally it should already exist from registration.
+        const { data, error } = await supabase
+            .from('driver_profiles')
+            .upsert({ user_id: userId, is_online }, { onConflict: 'user_id' })
+            .select();
+
+        if (error) {
+            console.error(`[DriverStatus] Supabase error for ${userId}:`, error);
+            throw error;
+        }
+
+        console.log(`[DriverStatus] Success for ${userId}. Data:`, data);
 
         res.status(200).json({ success: true, message: `Driver went ${is_online ? 'ONLINE' : 'OFFLINE'}` });
     } catch (e: any) {
+        console.error(`[DriverStatus] Fatal error for driver toggle:`, e.message);
         res.status(500).json({ success: false, message: e.message });
     }
 };

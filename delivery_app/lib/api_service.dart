@@ -28,6 +28,7 @@ class ApiService {
     );
   }
 
+  static Future<http.Response> verifyOtp(String phone, String otp) {
     return http.post(
       Uri.parse('$baseUrl/auth/verify-otp'),
       headers: {'Content-Type': 'application/json'},

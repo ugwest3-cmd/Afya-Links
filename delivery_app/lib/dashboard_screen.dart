@@ -97,7 +97,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _loadData(); // reload available pools
       } else {
         setState(() => _isOnline = !val);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update status')));
+        String msg = 'Failed to update status';
+        try {
+           final body = jsonDecode(res.body);
+           msg = body['message'] ?? msg;
+        } catch (_) {}
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
         setState(() => _loading = false);
       }
     } catch (e) {
@@ -241,6 +246,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             leading: const Icon(Icons.dashboard_rounded, color: Color(0xFF4B5563)),
             title: const Text('Dashboard', style: TextStyle(fontWeight: FontWeight.w600)),
             onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.notifications_none_rounded, color: Color(0xFF4B5563)),
+            title: const Text('Notifications', style: TextStyle(fontWeight: FontWeight.w600)),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+            },
           ),
           ListTile(
             leading: const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF4B5563)),
