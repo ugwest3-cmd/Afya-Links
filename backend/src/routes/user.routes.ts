@@ -34,7 +34,6 @@ router.post(
     uploadVerificationDoc
 );
 
-import { multerFields } from '../middlewares/uploadMiddleware'; // Optional, or just ignore file uploads if done as text.
 
 router.post(
     '/profile/driver',
