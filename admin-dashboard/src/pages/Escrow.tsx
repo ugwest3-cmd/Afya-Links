@@ -21,11 +21,28 @@ const STATUS_BADGE: Record<string, string> = {
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
-const FILTER_TABS = ['All', 'PAID', 'COMPLETED', 'DISPUTE', 'REFUNDED'];
+interface LedgerItem {
+    id: string;
+    order_code: string;
+    status: string;
+    created_at: string;
+    total_platform_revenue: number;
+    pharmacy_net: number;
+    driver_net: number;
+    total_payable: number;
+    clinic?: { name: string };
+    pharmacy?: { name: string };
+}
+
+interface Metrics {
+    totalLocked: number;
+    totalReleased: number;
+    platformRevenue: number;
+}
 
 export const Escrow = () => {
-    const [ledger, setLedger] = useState<any[]>([]);
-    const [metrics, setMetrics] = useState<any>(null);
+    const [ledger, setLedger] = useState<LedgerItem[]>([]);
+    const [metrics, setMetrics] = useState<Metrics | null>(null);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [activeFilter, setActiveFilter] = useState('All');
@@ -74,7 +91,7 @@ export const Escrow = () => {
     }, [ledger]);
 
     const performanceIndex = useMemo(() => {
-        const counts: any = {};
+        const counts: Record<string, { name: string; orders: number; revenue: number }> = {};
         ledger.forEach(o => {
             if (!o.pharmacy?.name) return;
             const name = o.pharmacy.name;
@@ -82,13 +99,16 @@ export const Escrow = () => {
             counts[name].orders += 1;
             counts[name].revenue += (Number(o.pharmacy_net) || 0);
         });
-        return Object.values(counts).sort((a: any, b: any) => b.revenue - a.revenue).slice(0, 5);
+        return Object.values(counts).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
     }, [ledger]);
 
     const filtered = useMemo(() => {
         return ledger.filter(o => {
             const statusMatch = activeFilter === 'All' || o.status === activeFilter;
-            const searchMatch = !search || o.order_code?.toLowerCase().includes(search.toLowerCase()) || o.id?.includes(search) || o.clinic?.name?.toLowerCase().includes(search.toLowerCase());
+            const searchMatch = !search ||
+                o.order_code?.toLowerCase().includes(search.toLowerCase()) ||
+                o.id?.includes(search) ||
+                o.clinic?.name?.toLowerCase().includes(search.toLowerCase());
             return statusMatch && searchMatch;
         });
     }, [ledger, activeFilter, search]);
@@ -119,7 +139,7 @@ export const Escrow = () => {
                         <BarChart data={revenueTrend}>
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                             <XAxis dataKey="name" stroke="var(--text-tertiary)" fontSize={11} tickLine={false} axisLine={false} />
-                            <YAxis stroke="var(--text-tertiary)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `K${v / 1000}`} />
+                            <YAxis stroke="var(--text-tertiary)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v: number) => `K${v / 1000}`} />
                             <Tooltip
                                 contentStyle={{ background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-color)', borderRadius: '8px' }}
                                 itemStyle={{ color: 'var(--accent-primary)', fontSize: '12px' }}
