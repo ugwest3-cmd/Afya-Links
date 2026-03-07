@@ -40,6 +40,7 @@ export const sendSMS = async (to: string[], message: string, from?: string) => {
     try {
         const at = getAT();
         const normalizedTo = to.map(normalizePhone);
+        const senderId = process.env.AFRICAS_TALKING_SENDER_ID;
 
         if (!at) {
             console.warn(`[SMS Mock] No AT API key configured. Would have sent to: ${normalizedTo.join(', ')} → "${message}"`);
@@ -47,7 +48,9 @@ export const sendSMS = async (to: string[], message: string, from?: string) => {
         }
 
         const options: any = { to: normalizedTo, message };
-        if (from) {
+        if (senderId) {
+            options.from = senderId;
+        } else if (from) {
             options.from = from;
         }
 
