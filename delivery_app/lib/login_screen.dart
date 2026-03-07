@@ -187,7 +187,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           keyboardType: TextInputType.phone,
                           enabled: !_otpSent && !_loading,
                           decoration: InputDecoration(
-                            hintText: 'Phone Number',
+                            hintText: 'Phone (e.g., 0722...)',
                             prefixIcon: const Icon(Icons.phone_android_rounded),
                             suffixIcon: _otpSent 
                               ? IconButton(

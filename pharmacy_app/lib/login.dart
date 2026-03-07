@@ -176,21 +176,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           if (!_otpSent) ...[
                             if (_isSignUp) ...[
                               // Registration Stepper UI
-                              if (_currentRegStep == 0) ...[
-                                _buildInputField(_nameCtrl, 'Pharmacy Name', Icons.business_rounded),
-                                const SizedBox(height: 16),
-                                _buildInputField(_phoneCtrl, 'Phone Number', Icons.phone_android_rounded, type: TextInputType.phone),
-                              ] else if (_currentRegStep == 1) ...[
-                                _buildInputField(_licenseCtrl, 'License Number', Icons.badge_rounded),
-                                const SizedBox(height: 12),
-                                const Text('Accurate license info speeds up approval.', style: TextStyle(fontSize: 11, color: Colors.blueGrey)),
-                              ] else if (_currentRegStep == 2) ...[
-                                _buildInputField(_locationCtrl, 'City/Location', Icons.location_on_rounded),
-                                const SizedBox(height: 16),
-                                const Text('Preferably the town or district.', style: TextStyle(fontSize: 11, color: Colors.blueGrey)),
-                              ],
                             ] else ...[
-                              _buildInputField(_phoneCtrl, 'Phone Number', Icons.phone_android_rounded, type: TextInputType.phone),
+                              _buildInputField(_phoneCtrl, 'Phone (e.g., 0722...)', Icons.phone_android_rounded, type: TextInputType.phone),
                             ],
                           ] else ...[
                             _buildInputField(_otpCtrl, 'Enter 6-digit code', Icons.lock_open_rounded, type: TextInputType.number),

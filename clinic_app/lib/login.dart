@@ -183,24 +183,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 32),
 
-                    if (!_otpSent) ...[
-                      if (_isSignUp) ...[
-                        // Registration Stepper UI
-                        if (_currentRegStep == 0) ...[
-                          _InputField(controller: _nameCtrl, hint: 'Clinic Name', icon: Icons.local_hospital, type: TextInputType.text),
-                          const SizedBox(height: 16),
-                          _InputField(controller: _phoneCtrl, hint: '+256 700 000 000', icon: Icons.phone_android_rounded, type: TextInputType.phone),
-                        ] else if (_currentRegStep == 1) ...[
-                          _InputField(controller: _hwidCtrl, hint: 'Worker ID / License No.', icon: Icons.badge, type: TextInputType.text),
-                          const SizedBox(height: 12),
-                          const Text('Please ensure your license is valid for verification.', style: TextStyle(fontSize: 11, color: Colors.blueGrey)),
-                        ] else if (_currentRegStep == 2) ...[
-                          const Text('Clinic Location', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
-                          const SizedBox(height: 8),
-                          _LocationInputField(controller: _locationCtrl),
-                        ],
                       ] else ...[
-                        _InputField(controller: _phoneCtrl, hint: '+256 700 000 000', icon: Icons.phone_android_rounded, type: TextInputType.phone),
+                        _InputField(controller: _phoneCtrl, hint: 'Phone (e.g., 0722...)', icon: Icons.phone_android_rounded, type: TextInputType.phone),
                       ],
                     ] else ...[
                       _InputField(controller: _otpCtrl, hint: 'Enter 6-digit code', icon: Icons.lock_person_rounded, type: TextInputType.number),

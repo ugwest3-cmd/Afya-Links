@@ -26,12 +26,13 @@ export const requestOtp = async (req: Request, res: Response): Promise<void> => 
         console.log(`[MVP DEV] 🚀 OTP for ${phone} is: ${otp}`);
 
         // Send actual SMS via Africa's Talking
-        const smsResponse = await sendSMS([phone], `Your AfyaLinks verification code is: ${otp}. Valid for 5 minutes.`);
+        const brandedMessage = `[AfyaLinks] Your AfyaLinks verification code is: ${otp}. Valid for 5 minutes.`;
+        const smsResponse = await sendSMS([phone], brandedMessage);
 
         if (!smsResponse.success) {
             console.error('[SMS Failed]', smsResponse.error);
         } else {
-            console.log(`[SMS Sent] OTP to ${phone}`);
+            console.log(`[SMS Sent] OTP to ${phone} (Attempted E.164)`);
         }
 
         res.status(200).json({
