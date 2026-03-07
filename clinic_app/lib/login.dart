@@ -19,10 +19,30 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _otpSent = false;
   bool _loading = false;
   bool _isSignUp = false;
+  int _currentRegStep = 0;
   final _locationCtrl = TextEditingController();
   final _hwidCtrl = TextEditingController();
 
   static const _primary = Color(0xFF0D6EFD);
+
+  void _nextStep() {
+    if (_currentRegStep == 0) {
+      if (_nameCtrl.text.trim().isEmpty) {
+        _showSnack('Enter your clinic name', isError: true);
+        return;
+      }
+      if (_phoneCtrl.text.trim().isEmpty) {
+        _showSnack('Enter a phone number', isError: true);
+        return;
+      }
+    } else if (_currentRegStep == 1) {
+      if (_hwidCtrl.text.trim().isEmpty) {
+        _showSnack('Enter your license number', isError: true);
+        return;
+      }
+    }
+    setState(() => _currentRegStep++);
+  }
 
   Future<void> _sendOtp() async {
     if (_phoneCtrl.text.trim().isEmpty) {
@@ -158,23 +178,30 @@ class _LoginScreenState extends State<LoginScreen> {
                     Text(
                       _otpSent
                           ? 'We\'ve sent a 6-digit code to ${_phoneCtrl.text}'
-                          : (_isSignUp ? 'Enter your details to register your clinic' : 'Sign in to continue to your dashboard'),
+                          : (_isSignUp ? 'Step ${_currentRegStep + 1} of 3: Enter your details' : 'Sign in to continue to your dashboard'),
                       style: TextStyle(color: Colors.blueGrey.shade400, fontSize: 13, height: 1.4),
                     ),
                     const SizedBox(height: 32),
 
                     if (!_otpSent) ...[
                       if (_isSignUp) ...[
-                        _InputField(controller: _nameCtrl, hint: 'Clinic Name', icon: Icons.local_hospital, type: TextInputType.text),
-                        const SizedBox(height: 16),
-                        const Text('Clinic Location', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
-                        const SizedBox(height: 8),
-                        _LocationInputField(controller: _locationCtrl),
-                        const SizedBox(height: 16),
-                        _InputField(controller: _hwidCtrl, hint: 'Worker ID / License No.', icon: Icons.badge, type: TextInputType.text),
-                        const SizedBox(height: 16),
+                        // Registration Stepper UI
+                        if (_currentRegStep == 0) ...[
+                          _InputField(controller: _nameCtrl, hint: 'Clinic Name', icon: Icons.local_hospital, type: TextInputType.text),
+                          const SizedBox(height: 16),
+                          _InputField(controller: _phoneCtrl, hint: '+256 700 000 000', icon: Icons.phone_android_rounded, type: TextInputType.phone),
+                        ] else if (_currentRegStep == 1) ...[
+                          _InputField(controller: _hwidCtrl, hint: 'Worker ID / License No.', icon: Icons.badge, type: TextInputType.text),
+                          const SizedBox(height: 12),
+                          const Text('Please ensure your license is valid for verification.', style: TextStyle(fontSize: 11, color: Colors.blueGrey)),
+                        ] else if (_currentRegStep == 2) ...[
+                          const Text('Clinic Location', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
+                          const SizedBox(height: 8),
+                          _LocationInputField(controller: _locationCtrl),
+                        ],
+                      ] else ...[
+                        _InputField(controller: _phoneCtrl, hint: '+256 700 000 000', icon: Icons.phone_android_rounded, type: TextInputType.phone),
                       ],
-                      _InputField(controller: _phoneCtrl, hint: '+256 700 000 000', icon: Icons.phone_android_rounded, type: TextInputType.phone),
                     ] else ...[
                       _InputField(controller: _otpCtrl, hint: 'Enter 6-digit code', icon: Icons.lock_person_rounded, type: TextInputType.number),
                       const SizedBox(height: 12),
@@ -187,21 +214,44 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                     const SizedBox(height: 32),
 
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: _loading ? null : (_otpSent ? _verifyOtp : _sendOtp),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0D47A1),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          elevation: 0,
+                    Row(
+                      children: [
+                        if (_isSignUp && _currentRegStep > 0 && !_otpSent)
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 12),
+                              child: SizedBox(
+                                height: 56,
+                                child: OutlinedButton(
+                                  onPressed: () => setState(() => _currentRegStep--),
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(color: Color(0xFF0D47A1)),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  ),
+                                  child: const Text('Back', style: TextStyle(color: Color(0xFF0D47A1), fontWeight: FontWeight.bold)),
+                                ),
+                              ),
+                            ),
+                          ),
+                        Expanded(
+                          flex: 2,
+                          child: SizedBox(
+                            height: 56,
+                            child: ElevatedButton(
+                              onPressed: _loading ? null : (_otpSent ? _verifyOtp : (_isSignUp && _currentRegStep < 2 ? _nextStep : _sendOtp)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0D47A1),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                elevation: 0,
+                              ),
+                              child: _loading
+                                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                                  : Text(_otpSent ? 'Verify OTP' : (_isSignUp ? (_currentRegStep < 2 ? 'Continue' : 'Create Account') : 'Get Started'),
+                                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
                         ),
-                        child: _loading
-                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                            : Text(_otpSent ? 'Verify OTP' : (_isSignUp ? 'Create Account' : 'Get Started'),
-                                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                      ),
+                      ],
                     ),
                     
                     if (!_otpSent) ...[
@@ -212,7 +262,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           Text(_isSignUp ? 'Already a member?' : 'New to AfyaLinks?', 
                                style: TextStyle(color: Colors.blueGrey.shade600, fontSize: 13)),
                           TextButton(
-                            onPressed: () => setState(() => _isSignUp = !_isSignUp),
+                            onPressed: () => setState(() {
+                              _isSignUp = !_isSignUp;
+                              if (!_isSignUp) _currentRegStep = 0;
+                            }),
                             child: Text(_isSignUp ? 'Sign In' : 'Register Clinic',
                                  style: const TextStyle(color: Color(0xFF0D47A1), fontSize: 13, fontWeight: FontWeight.bold)),
                           ),

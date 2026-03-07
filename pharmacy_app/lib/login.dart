@@ -20,8 +20,28 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _otpSent = false;
   bool _loading = false;
   bool _isSignUp = false;
+  int _currentRegStep = 0;
 
   static const _primary = Color(0xFF1B5E20);
+
+  void _nextStep() {
+    if (_currentRegStep == 0) {
+      if (_nameCtrl.text.trim().isEmpty) {
+        _showSnack('Enter your pharmacy name', isError: true);
+        return;
+      }
+      if (_phoneCtrl.text.trim().isEmpty) {
+        _showSnack('Enter a phone number', isError: true);
+        return;
+      }
+    } else if (_currentRegStep == 1) {
+      if (_licenseCtrl.text.trim().isEmpty) {
+        _showSnack('Enter your license number', isError: true);
+        return;
+      }
+    }
+    setState(() => _currentRegStep++);
+  }
 
   Future<void> _sendOtp() async {
     if (_phoneCtrl.text.trim().isEmpty) {
@@ -101,109 +121,158 @@ class _LoginScreenState extends State<LoginScreen> {
     final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF1F8E9), // Light green background
       body: _loading
           ? Center(child: CircularProgressIndicator(color: primary))
           : SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const SizedBox(height: 60),
                     // Logo Section
-                    Center(
+                    Container(
+                      width: 90, height: 90,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [primary, primary.withOpacity(0.7)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(28),
+                        boxShadow: [
+                          BoxShadow(color: primary.withOpacity(0.3), blurRadius: 25, offset: const Offset(0, 10))
+                        ],
+                      ),
+                      child: const Icon(Icons.local_pharmacy_rounded, color: Colors.white, size: 50),
+                    ),
+                    const SizedBox(height: 24),
+                    Text('AfyaLinks', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: primary, letterSpacing: -0.5)),
+                    const Text('Pharmacy Partner Portal', style: TextStyle(fontSize: 15, color: Colors.blueGrey, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 48),
+
+                    // Card
+                    Container(
+                      padding: const EdgeInsets.all(30),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(28),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 40, offset: const Offset(0, 4))],
+                      ),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: primary.withOpacity(0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(Icons.local_pharmacy_rounded, color: primary, size: 56),
-                          ),
-                          const SizedBox(height: 20),
-                          const Text(
-                            'AfyaLinks Pharmacy',
-                            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: -0.5),
-                          ),
-                          const SizedBox(height: 6),
+                          Text(_otpSent ? 'Verification' : (_isSignUp ? 'Apply as Partner' : 'Sign In'), 
+                               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: primary)),
+                          const SizedBox(height: 8),
                           Text(
-                            'Partner Portal • Secure Access',
-                            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                            _otpSent
+                                ? 'We\'ve sent a 6-digit code to ${_phoneCtrl.text}'
+                                : (_isSignUp ? 'Step ${_currentRegStep + 1} of 3: Enter details' : 'Secure access to your pharmacy dashboard'),
+                            style: TextStyle(color: Colors.blueGrey.shade400, fontSize: 13, height: 1.4),
                           ),
+                          const SizedBox(height: 32),
+
+                          if (!_otpSent) ...[
+                            if (_isSignUp) ...[
+                              // Registration Stepper UI
+                              if (_currentRegStep == 0) ...[
+                                _buildInputField(_nameCtrl, 'Pharmacy Name', Icons.business_rounded),
+                                const SizedBox(height: 16),
+                                _buildInputField(_phoneCtrl, 'Phone Number', Icons.phone_android_rounded, type: TextInputType.phone),
+                              ] else if (_currentRegStep == 1) ...[
+                                _buildInputField(_licenseCtrl, 'License Number', Icons.badge_rounded),
+                                const SizedBox(height: 12),
+                                const Text('Accurate license info speeds up approval.', style: TextStyle(fontSize: 11, color: Colors.blueGrey)),
+                              ] else if (_currentRegStep == 2) ...[
+                                _buildInputField(_locationCtrl, 'City/Location', Icons.location_on_rounded),
+                                const SizedBox(height: 16),
+                                const Text('Preferably the town or district.', style: TextStyle(fontSize: 11, color: Colors.blueGrey)),
+                              ],
+                            ] else ...[
+                              _buildInputField(_phoneCtrl, 'Phone Number', Icons.phone_android_rounded, type: TextInputType.phone),
+                            ],
+                          ] else ...[
+                            _buildInputField(_otpCtrl, 'Enter 6-digit code', Icons.lock_open_rounded, type: TextInputType.number),
+                            const SizedBox(height: 12),
+                            Center(
+                              child: TextButton(
+                                onPressed: () => setState(() { _otpSent = false; _otpCtrl.clear(); }),
+                                child: Text('Change phone number', style: TextStyle(color: primary, fontSize: 13, fontWeight: FontWeight.w600)),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 32),
+
+                          Row(
+                            children: [
+                              if (_isSignUp && _currentRegStep > 0 && !_otpSent)
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(right: 12),
+                                    child: SizedBox(
+                                      height: 56,
+                                      child: OutlinedButton(
+                                        onPressed: () => setState(() => _currentRegStep--),
+                                        style: OutlinedButton.styleFrom(
+                                          side: BorderSide(color: primary),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                        ),
+                                        child: Text('Back', style: TextStyle(color: primary, fontWeight: FontWeight.bold)),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              Expanded(
+                                flex: 2,
+                                child: SizedBox(
+                                  height: 56,
+                                  child: ElevatedButton(
+                                    onPressed: _loading ? null : (_otpSent ? _verifyOtp : (_isSignUp && _currentRegStep < 2 ? _nextStep : _sendOtp)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: primary,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                      elevation: 0,
+                                    ),
+                                    child: _loading
+                                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                                        : Text(_otpSent ? 'Verify OTP' : (_isSignUp ? (_currentRegStep < 2 ? 'Continue' : 'Submit Application') : 'Get Access'),
+                                            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          
+                          if (!_otpSent) ...[
+                            const SizedBox(height: 20),
+                            Center(
+                              child: TextButton(
+                                onPressed: () => setState(() {
+                                  _isSignUp = !_isSignUp;
+                                  if (!_isSignUp) _currentRegStep = 0;
+                                }),
+                                child: RichText(
+                                  text: TextSpan(
+                                    style: const TextStyle(color: Colors.grey, fontSize: 13),
+                                    children: [
+                                      TextSpan(text: _isSignUp ? 'Already a partner? ' : 'New Pharmacy Partner? '),
+                                      TextSpan(
+                                        text: _isSignUp ? 'Sign In' : 'Register Now',
+                                        style: TextStyle(color: primary, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
-                    const SizedBox(height: 48),
-
-                    // Title & Description
-                    Text(
-                      _otpSent ? 'Enter Verification Code' : (_isSignUp ? 'Apply as Partner' : 'Sign In'),
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _otpSent
-                          ? 'We\'ve sent a 6-digit code to ${_phoneCtrl.text}'
-                          : (_isSignUp ? 'Register to start receiving clinic orders.' : 'Enter your registered phone number to continue.'),
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Form Fields
-                    if (!_otpSent) ...[
-                      if (_isSignUp) ...[
-                        _buildInputField(_nameCtrl, 'Pharmacy Name', Icons.business_rounded),
-                        const SizedBox(height: 16),
-                        _buildInputField(_locationCtrl, 'City/Location', Icons.location_on_rounded),
-                        const SizedBox(height: 16),
-                        _buildInputField(_licenseCtrl, 'License Number', Icons.badge_rounded),
-                        const SizedBox(height: 16),
-                      ],
-                      _buildInputField(_phoneCtrl, 'Phone Number', Icons.phone_android_rounded, type: TextInputType.phone),
-                    ] else ...[
-                      _buildInputField(_otpCtrl, '6-Digit OTP', Icons.lock_open_rounded, type: TextInputType.number),
-                      const SizedBox(height: 12),
-                      TextButton.icon(
-                        onPressed: () => setState(() => _otpSent = false),
-                        icon: const Icon(Icons.arrow_back_rounded, size: 14),
-                        label: const Text('Change Phone Number', style: TextStyle(fontSize: 12)),
-                        style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
-                      ),
-                    ],
-
-                    const SizedBox(height: 32),
-
-                    ElevatedButton(
-                      onPressed: _otpSent ? _verifyOtp : _sendOtp,
-                      child: Text(
-                        _otpSent ? 'Verify & Login' : (_isSignUp ? 'Submit Application' : 'Get Access Code →'),
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                      ),
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    // Toggle Sign In / Sign Up
-                    if (!_otpSent)
-                      Center(
-                        child: TextButton(
-                          onPressed: () => setState(() => _isSignUp = !_isSignUp),
-                          child: RichText(
-                            text: TextSpan(
-                              style: const TextStyle(color: Colors.grey, fontSize: 14),
-                              children: [
-                                TextSpan(text: _isSignUp ? 'Already have an account? ' : 'New Pharmacy Partner? '),
-                                TextSpan(
-                                  text: _isSignUp ? 'Login Here' : 'Register Now',
-                                  style: TextStyle(color: primary, fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
+                    const SizedBox(height: 60),
+                    Text('Secure Health Ecosystem by AfyaLinks', style: TextStyle(color: Colors.blueGrey.shade300, fontSize: 12)),
+                    const SizedBox(height: 12),
                   ],
                 ),
               ),
