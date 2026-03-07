@@ -21,6 +21,8 @@ const STATUS_BADGE: Record<string, string> = {
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
+const FILTER_TABS = ['All', 'PAID', 'COMPLETED', 'DISPUTE', 'REFUNDED'];
+
 export const Escrow = () => {
     const [ledger, setLedger] = useState<any[]>([]);
     const [metrics, setMetrics] = useState<any>(null);
