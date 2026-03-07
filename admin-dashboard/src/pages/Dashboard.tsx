@@ -201,7 +201,7 @@ export const Dashboard = () => {
                     <h3 className="text-h3" style={{ marginBottom: '1rem' }}>Platform Pulse</h3>
                     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-subtle)' }}>
-                            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(245,158,11,0.1)', display: 'flex', alignItems: 'center', justifyCenter: 'center', color: 'var(--status-warning)' }}>
+                            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(245,158,11,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--status-warning)' }}>
                                 <ShieldAlert size={20} style={{ margin: '0 auto' }} />
                             </div>
                             <div>
@@ -222,7 +222,7 @@ export const Dashboard = () => {
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyCenter: 'center', color: 'var(--status-info)' }}>
+                            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--status-info)' }}>
                                 <Users size={20} style={{ margin: '0 auto' }} />
                             </div>
                             <div>

@@ -1,4 +1,24 @@
+import { useState, useEffect } from 'react';
+import { DollarSign, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import api from '../utils/api';
+
+interface PayoutRequest {
+    id: string;
+    pharmacy_id: string;
+    amount: number;
+    payment_method: string;
+    payment_details: any;
+    status: string;
+    created_at: string;
+    pharmacy: { name: string; email: string; phone: string };
+}
+
+interface Alert {
+    pharmacy_id: string;
+    available_balance: number;
+    alert_level: string;
+    pharmacy: { name: string; phone: string };
+}
 
 export const Payouts = () => {
     const [requests, setRequests] = useState<PayoutRequest[]>([]);
