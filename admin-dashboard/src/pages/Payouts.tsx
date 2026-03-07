@@ -1,24 +1,4 @@
-import { useState, useEffect } from 'react';
-import { DollarSign, AlertCircle, CheckCircle, Clock } from 'lucide-react';
-// Wait, the Admin dashboard usually uses fetch to the backend. Let me create it using standard fetch.
-
-interface PayoutRequest {
-    id: string;
-    pharmacy_id: string;
-    amount: number;
-    payment_method: string;
-    payment_details: any;
-    status: string;
-    created_at: string;
-    pharmacy: { name: string; email: string; phone: string };
-}
-
-interface Alert {
-    pharmacy_id: string;
-    available_balance: number;
-    alert_level: string;
-    pharmacy: { name: string; phone: string };
-}
+import api from '../utils/api';
 
 export const Payouts = () => {
     const [requests, setRequests] = useState<PayoutRequest[]>([]);
@@ -26,28 +6,21 @@ export const Payouts = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    // Use env var to locate backend
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    const token = localStorage.getItem('token');
-
     const fetchData = async () => {
         try {
             setLoading(true);
             setError('');
 
             const [payoutsRes, alertsRes] = await Promise.all([
-                fetch(`${API_URL}/api/admin/payouts`, { headers: { Authorization: `Bearer ${token}` } }),
-                fetch(`${API_URL}/api/admin/payout-alerts`, { headers: { Authorization: `Bearer ${token}` } })
+                api.get('/admin/payouts'),
+                api.get('/admin/payout-alerts')
             ]);
 
-            const payoutsData = await payoutsRes.json();
-            const alertsData = await alertsRes.json();
-
-            if (payoutsData.success) setRequests(payoutsData.payouts || []);
-            if (alertsData.success) setAlerts(alertsData.alerts || []);
+            if (payoutsRes.data.success) setRequests(payoutsRes.data.payouts || []);
+            if (alertsRes.data.success) setAlerts(alertsRes.data.alerts || []);
 
         } catch (err: any) {
-            setError(err.message || 'Failed to load payouts data');
+            setError(err.response?.data?.message || err.message || 'Failed to load payouts data');
         } finally {
             setLoading(false);
         }
@@ -55,26 +28,21 @@ export const Payouts = () => {
 
     useEffect(() => {
         fetchData();
-    }, [API_URL, token]);
+    }, []);
 
     const handleMarkPaid = async (id: string) => {
         if (!window.confirm('Are you sure you have already sent the funds to this pharmacy?')) return;
 
         try {
-            const res = await fetch(`${API_URL}/api/admin/payouts/${id}/pay`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            const data = await res.json();
-
-            if (data.success) {
+            const res = await api.post(`/admin/payouts/${id}/pay`);
+            if (res.data.success) {
                 alert('Payout marked as paid!');
                 fetchData();
             } else {
-                alert(data.message || 'Failed to update payout');
+                alert(res.data.message || 'Failed to update payout');
             }
         } catch (err: any) {
-            alert(err.message || 'An error occurred');
+            alert(err.response?.data?.message || err.message || 'An error occurred');
         }
     };
 
