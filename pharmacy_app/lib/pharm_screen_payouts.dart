@@ -10,8 +10,6 @@ class PharmPayoutsScreen extends StatefulWidget {
 }
 
 class _PharmPayoutsScreenState extends State<PharmPayoutsScreen> {
-  static const _primary = Color(0xFF1B5E20);
-  
   bool _isLoading = true;
   double _availableBalance = 0;
   List<dynamic> _history = [];
@@ -50,7 +48,7 @@ class _PharmPayoutsScreenState extends State<PharmPayoutsScreen> {
 
   Future<void> _requestPayout() async {
     if (_availableBalance < 500000) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Minimum withdrawal is UGX 500,000')));
+      _showSnack('Minimum withdrawal is UGX 500,000', isError: true);
       return;
     }
 
@@ -60,16 +58,210 @@ class _PharmPayoutsScreenState extends State<PharmPayoutsScreen> {
       final data = jsonDecode(res.body);
       
       if (res.statusCode == 200 && data['success']) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payout requested successfully!')));
+        _showSnack('Payout requested successfully!');
         _fetchPayoutData(); 
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Failed to request payout'), backgroundColor: Colors.red));
+        _showSnack(data['message'] ?? 'Failed to request payout', isError: true);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Network error requesting payout')));
+      _showSnack('Network error requesting payout', isError: true);
     } finally {
       setState(() => _isRequesting = false);
     }
+  }
+
+  void _showSnack(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: isError ? Colors.red.shade700 : const Color(0xFF1B5E20),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ));
+  }
+
+  String _formatCurrency(double val) {
+    String s = val.toStringAsFixed(0);
+    RegExp reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
+    s = s.replaceAllMapped(reg, (Match m) => '${m[1]},');
+    return 'UGX $s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: _isLoading 
+        ? Center(child: CircularProgressIndicator(color: primary))
+        : RefreshIndicator(
+            onRefresh: _fetchPayoutData,
+            color: primary,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Premium Balance Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(28),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [primary, const Color(0xFF2E7D32)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primary.withOpacity(0.3),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        )
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Available for Payout', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
+                                SizedBox(height: 4),
+                                Text('Wallet Balance', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), shape: BoxShape.circle),
+                              child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 24),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+                        Text(_formatCurrency(_availableBalance), style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.black, letterSpacing: -1)),
+                        const SizedBox(height: 32),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: (_availableBalance >= 500000 && !_isRequesting) ? _requestPayout : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: primary,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              elevation: 0,
+                            ),
+                            child: _isRequesting 
+                              ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Text('Request Settlement', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        if (_availableBalance < 500000)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 14),
+                            child: Text('Next payout at UGX 500,000 threshold', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11, fontWeight: FontWeight.w500)),
+                          )
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+
+                  // Stats Row
+                  Row(
+                    children: [
+                      _StatItem(label: 'Total Earnings', value: _stats['total_earnings']?.toString() ?? '0', color: primary, icon: Icons.trending_up_rounded),
+                      const SizedBox(width: 12),
+                      _StatItem(label: 'Pending', value: _stats['pending_balance']?.toString() ?? '0', color: Colors.orange, icon: Icons.hourglass_top_rounded),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+
+                  // History List
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Recent Settlements', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      IconButton(
+                        onPressed: _showPayoutConfigSheet,
+                        icon: Icon(Icons.settings_suggest_rounded, color: primary, size: 22),
+                        tooltip: 'Payout Settings',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  if (_history.isEmpty)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 60),
+                        child: Column(
+                          children: [
+                            Icon(Icons.receipt_long_outlined, size: 64, color: Colors.grey.shade200),
+                            const SizedBox(height: 16),
+                            Text('No payout records found yet.', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _history.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final item = _history[index];
+                        final amount = item['amount'] is num ? (item['amount'] as num).toDouble() : double.tryParse(item['amount'].toString()) ?? 0;
+                        final date = DateTime.tryParse(item['created_at'] ?? '')?.toLocal();
+                        final status = item['status'] as String? ?? 'UNKNOWN';
+                        
+                        Color statusColor = Colors.orange;
+                        if (status == 'PAID') statusColor = primary;
+                        else if (status == 'FAILED') statusColor = Colors.red;
+
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(color: statusColor.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
+                                child: Icon(Icons.account_balance_wallet_rounded, color: statusColor, size: 24),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(_formatCurrency(amount), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                    const SizedBox(height: 2),
+                                    Text('${item['payment_method']} • ${date?.day}/${date?.month}/${date?.year}', style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                                child: Text(status, style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                              )
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                ],
+              ),
+            ),
+          )
+    );
   }
 
   Future<void> _showPayoutConfigSheet() async {
@@ -77,7 +269,7 @@ class _PharmPayoutsScreenState extends State<PharmPayoutsScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator(color: _primary)),
+      builder: (_) => const Center(child: CircularProgressIndicator()),
     );
     
     Map<String, dynamic>? profileData;
@@ -89,7 +281,7 @@ class _PharmPayoutsScreenState extends State<PharmPayoutsScreen> {
     if (mounted) Navigator.pop(context); // close loading
 
     if (profileData == null) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to load payout settings.')));
+      if (mounted) _showSnack('Failed to load payout settings.', isError: true);
       return;
     }
 
@@ -107,310 +299,131 @@ class _PharmPayoutsScreenState extends State<PharmPayoutsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(builder: (context, setModalState) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Payout Configuration', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              
-              DropdownButtonFormField<String>(
-                value: selectedMethod,
-                decoration: const InputDecoration(labelText: 'Preferred Payout Method'),
-                items: ['Mobile Money', 'Bank Transfer', 'Cash Collection']
-                    .map((m) => DropdownMenuItem(value: m, child: Text(m)))
-                    .toList(),
-                onChanged: (val) {
-                  if (val != null) setModalState(() => selectedMethod = val);
-                },
-              ),
-              const SizedBox(height: 16),
-              
-              if (selectedMethod == 'Mobile Money') ...[
-                TextField(
-                  controller: accountNameCtrl,
-                  decoration: const InputDecoration(labelText: 'Registered Name (e.g., John Doe)'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: accountNoCtrl,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: 'Mobile Money Number (e.g., 077...)'),
-                ),
-              ] else if (selectedMethod == 'Bank Transfer') ...[
-                TextField(
-                  controller: bankNameCtrl,
-                  decoration: const InputDecoration(labelText: 'Bank Name'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: accountNameCtrl,
-                  decoration: const InputDecoration(labelText: 'Account Name'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: accountNoCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Account Number'),
-                ),
-              ] else ...[
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8.0),
-                  child: Text('You will collect your payouts in person at the AfyaLinks head office.', style: TextStyle(color: Colors.grey)),
-                )
-              ],
-              
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: isSaving ? null : () async {
-                    setModalState(() => isSaving = true);
-                    
-                    Map<String, dynamic> details = {};
-                    if (selectedMethod == 'Mobile Money') {
-                      details = {'accountName': accountNameCtrl.text, 'accountNumber': accountNoCtrl.text};
-                    } else if (selectedMethod == 'Bank Transfer') {
-                      details = {'bankName': bankNameCtrl.text, 'accountName': accountNameCtrl.text, 'accountNumber': accountNoCtrl.text};
-                    }
-                    
-                    try {
-                      final res = await ApiService.updateProfilePreferences({
-                        'preferred_payout_method': selectedMethod,
-                        'payout_details': details,
-                      });
-                      if (res.statusCode == 200) {
-                        if (mounted) Navigator.pop(ctx);
-                        ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Payout config saved!')));
-                      } else {
-                        ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Failed: ${jsonDecode(res.body)['message']}')));
-                      }
-                    } catch (e) {
-                      ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Network Error')));
-                    } finally {
-                      setModalState(() => isSaving = false);
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _primary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        return Container(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: Container(
+            padding: const EdgeInsets.all(28),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40, height: 4, 
+                    margin: const EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(4)),
                   ),
-                  child: isSaving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Save Configuration', style: TextStyle(color: Colors.white)),
                 ),
-              ),
-              const SizedBox(height: 24),
-            ],
+                const Text('Payout Settings', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 24),
+                
+                DropdownButtonFormField<String>(
+                  value: selectedMethod,
+                  decoration: const InputDecoration(labelText: 'Preferred Method'),
+                  items: ['Mobile Money', 'Bank Transfer', 'Cash Collection']
+                      .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                      .toList(),
+                  onChanged: (val) {
+                    if (val != null) setModalState(() => selectedMethod = val);
+                  },
+                ),
+                const SizedBox(height: 20),
+                
+                if (selectedMethod == 'Mobile Money') ...[
+                  TextField(
+                    controller: accountNameCtrl,
+                    decoration: const InputDecoration(labelText: 'Registered Account Name'),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: accountNoCtrl,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(labelText: 'Mobile Number'),
+                  ),
+                ] else if (selectedMethod == 'Bank Transfer') ...[
+                  TextField(
+                    controller: bankNameCtrl,
+                    decoration: const InputDecoration(labelText: 'Bank Name'),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: accountNameCtrl,
+                    decoration: const InputDecoration(labelText: 'Account Name'),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: accountNoCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Account Number'),
+                  ),
+                ] else ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12)),
+                    child: const Text('Cash collection details will be coordinated via support.', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                  )
+                ],
+                
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: isSaving ? null : () async {
+                      setModalState(() => isSaving = true);
+                      
+                      Map<String, dynamic> details = {};
+                      if (selectedMethod == 'Mobile Money') {
+                        details = {'accountName': accountNameCtrl.text, 'accountNumber': accountNoCtrl.text};
+                      } else if (selectedMethod == 'Bank Transfer') {
+                        details = {'bankName': bankNameCtrl.text, 'accountName': accountNameCtrl.text, 'accountNumber': accountNoCtrl.text};
+                      }
+                      
+                      try {
+                        final res = await ApiService.updateProfilePreferences({
+                          'preferred_payout_method': selectedMethod,
+                          'payout_details': details,
+                        });
+                        if (res.statusCode == 200) {
+                          if (mounted) Navigator.pop(ctx);
+                          _showSnack('Configuration updated');
+                        } else {
+                          _showSnack('Failed to update settings', isError: true);
+                        }
+                      } catch (e) {
+                        _showSnack('Network error', isError: true);
+                      } finally {
+                        setModalState(() => isSaving = false);
+                      }
+                    },
+                    child: isSaving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Save and Apply Settings', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
           ),
         );
       }),
     );
   }
-
-  String _formatCurrency(double val) {
-    String s = val.toStringAsFixed(0);
-    RegExp reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
-    s = s.replaceAllMapped(reg, (Match m) => '${m[1]},');
-    return 'UGX $s';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: const Text('Wallet & Payouts', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Payout Settings',
-            onPressed: _showPayoutConfigSheet,
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator(color: _primary))
-        : RefreshIndicator(
-            onRefresh: _fetchPayoutData,
-            color: _primary,
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Earnings Summary Card (Moved from Profile)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _EarningItem(
-                          label: 'Total Earned',
-                          value: _stats['total_earnings']?.toString() ?? '0',
-                          color: const Color(0xFF2E7D32),
-                          icon: Icons.account_balance_wallet_rounded,
-                        ),
-                      ),
-                      Container(width: 1, height: 40, color: Colors.grey.shade200),
-                      Expanded(
-                        child: _EarningItem(
-                          label: 'Pending Payout',
-                          value: _stats['pending_balance']?.toString() ?? '0',
-                          color: Colors.orange.shade800,
-                          icon: Icons.hourglass_bottom_rounded,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Balance Card
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [_primary, Color(0xFF2E7D32)]),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [BoxShadow(color: _primary.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))],
-                  ),
-                  child: Column(
-                    children: [
-                      const Text('Available Balance', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                      const SizedBox(height: 8),
-                      Text(_formatCurrency(_availableBalance), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: (_availableBalance >= 500000 && !_isRequesting) ? _requestPayout : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: _primary,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            disabledBackgroundColor: Colors.white.withOpacity(0.5),
-                          ),
-                          child: _isRequesting 
-                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Text('Request Payout', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                      if (_availableBalance < 500000)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 12),
-                          child: Text('Minimum withdrawal is UGX 500,000', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                        )
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 32),
-                
-                // History List
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Payout History', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    if (_history.isNotEmpty)
-                      Text('${_history.length} requests', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                
-                if (_history.isEmpty)
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 40),
-                      child: Column(
-                        children: [
-                          Icon(Icons.receipt_long_outlined, size: 60, color: Colors.grey.shade300),
-                          const SizedBox(height: 16),
-                          Text('No payout history found.', style: TextStyle(color: Colors.grey.shade600)),
-                        ],
-                      ),
-                    ),
-                  )
-                else
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _history.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final item = _history[index];
-                      final amount = item['amount'] is num ? (item['amount'] as num).toDouble() : double.tryParse(item['amount'].toString()) ?? 0;
-                      final date = DateTime.tryParse(item['created_at'] ?? '')?.toLocal();
-                      final dateStr = date != null ? '${date.day}/${date.month}/${date.year}' : 'Unknown date';
-                      final status = item['status'] as String? ?? 'UNKNOWN';
-                      
-                      Color statusColor = Colors.orange;
-                      if (status == 'PAID') statusColor = Colors.green;
-                      else if (status == 'FAILED') statusColor = Colors.red;
-
-                      return Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12)),
-                              child: Icon(Icons.account_balance_wallet, color: statusColor, size: 24),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(_formatCurrency(amount), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                  const SizedBox(height: 4),
-                                  Text('${item['payment_method']} · $dateStr', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                              child: Text(status, style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold)),
-                            )
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-              ],
-            ),
-          )
-    );
-  }
 }
 
-class _EarningItem extends StatelessWidget {
-  final String label, value;
+class _StatItem extends StatelessWidget {
+  final String label, value, colorLabel = '';
   final Color color;
   final IconData icon;
 
-  const _EarningItem({required this.label, required this.value, required this.color, required this.icon});
+  const _StatItem({required this.label, required this.value, required this.color, required this.icon});
 
   String _formatCurrency(String val) {
     try {
       double d = double.parse(val);
-      if (d == 0) return 'UGX 0';
       String s = d.toStringAsFixed(0);
       RegExp reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
       s = s.replaceAllMapped(reg, (Match m) => '${m[1]},');
@@ -422,19 +435,29 @@ class _EarningItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 24),
-        const SizedBox(height: 8),
-        Text(
-          _formatCurrency(value),
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
         ),
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+              child: Icon(icon, color: color, size: 18),
+            ),
+            const SizedBox(height: 16),
+            Text(_formatCurrency(value), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+            const SizedBox(height: 2),
+            Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

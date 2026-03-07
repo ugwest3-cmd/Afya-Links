@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 
@@ -14,11 +14,12 @@ class _LoginScreenState extends State<LoginScreen> {
   final _phoneCtrl = TextEditingController();
   final _otpCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
+  final _locationCtrl = TextEditingController();
+  final _licenseCtrl = TextEditingController();
+  
   bool _otpSent = false;
   bool _loading = false;
   bool _isSignUp = false;
-  final _locationCtrl = TextEditingController();
-  final _licenseCtrl = TextEditingController();
 
   static const _primary = Color(0xFF1B5E20);
 
@@ -48,7 +49,8 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _otpSent = true);
         _showSnack('OTP sent!');
       } else {
-        _showSnack(jsonDecode(res.body)['message'] ?? 'Failed to send OTP', isError: true);
+        final body = jsonDecode(res.body);
+        _showSnack(body['message'] ?? 'Failed to send OTP', isError: true);
       }
     } catch (_) {
       _showSnack('Network error', isError: true);
@@ -76,7 +78,6 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString('token', data['token']);
         await prefs.setString('pharmacyName', data['business_name'] ?? '');
         if (mounted) Navigator.pushReplacementNamed(context, '/home');
-
       } else {
         _showSnack(jsonDecode(res.body)['message'] ?? 'Invalid OTP', isError: true);
       }
@@ -89,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void _showSnack(String msg, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
-      backgroundColor: isError ? Colors.red.shade700 : const Color(0xFF2E7D32),
+      backgroundColor: isError ? Colors.red.shade700 : const Color(0xFF1B5E20),
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ));
@@ -97,137 +98,126 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF1F8F1),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            children: [
-              const SizedBox(height: 60),
-              // Logo
-              Container(
-                width: 80, height: 80,
-                decoration: BoxDecoration(
-                  color: _primary,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [BoxShadow(color: _primary.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 8))],
-                ),
-                child: const Icon(Icons.local_pharmacy_rounded, color: Colors.white, size: 44),
-              ),
-              const SizedBox(height: 20),
-              const Text('AfyaLinks', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: _primary)),
-              const Text('Pharmacy Portal', style: TextStyle(fontSize: 14, color: Colors.grey)),
-              const SizedBox(height: 40),
+    final primary = Theme.of(context).colorScheme.primary;
 
-              // Card
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 20)],
-                ),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: _loading
+          ? Center(child: CircularProgressIndicator(color: primary))
+          : SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_otpSent ? 'Enter OTP' : (_isSignUp ? 'Apply as Provider' : 'Sign In'), 
-                         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
+                    // Logo Section
+                    Center(
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: primary.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.local_pharmacy_rounded, color: primary, size: 56),
+                          ),
+                          const SizedBox(height: 20),
+                          const Text(
+                            'AfyaLinks Pharmacy',
+                            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: -0.5),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Partner Portal • Secure Access',
+                            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 48),
+
+                    // Title & Description
+                    Text(
+                      _otpSent ? 'Enter Verification Code' : (_isSignUp ? 'Apply as Partner' : 'Sign In'),
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
                     Text(
                       _otpSent
-                          ? 'Enter the code sent to ${_phoneCtrl.text}'
-                          : (_isSignUp ? 'Register your pharmacy to receive orders' : 'Enter your registered pharmacy phone number'),
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                          ? 'We\'ve sent a 6-digit code to ${_phoneCtrl.text}'
+                          : (_isSignUp ? 'Register to start receiving clinic orders.' : 'Enter your registered phone number to continue.'),
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 32),
 
+                    // Form Fields
                     if (!_otpSent) ...[
                       if (_isSignUp) ...[
-                        _InputField(controller: _nameCtrl, hint: 'Pharmacy Name', icon: Icons.business, type: TextInputType.text),
-                        const SizedBox(height: 12),
-                        _InputField(controller: _locationCtrl, hint: 'Pharmacy Location (e.g. Jinja Road)', icon: Icons.location_on, type: TextInputType.text),
-                        const SizedBox(height: 12),
-                        _InputField(controller: _licenseCtrl, hint: 'License Number (e.g. PHAR-1234)', icon: Icons.badge, type: TextInputType.text),
-                        const SizedBox(height: 12),
+                        _buildInputField(_nameCtrl, 'Pharmacy Name', Icons.business_rounded),
+                        const SizedBox(height: 16),
+                        _buildInputField(_locationCtrl, 'City/Location', Icons.location_on_rounded),
+                        const SizedBox(height: 16),
+                        _buildInputField(_licenseCtrl, 'License Number', Icons.badge_rounded),
+                        const SizedBox(height: 16),
                       ],
-                      _InputField(controller: _phoneCtrl, hint: '+256 700 000 000', icon: Icons.phone, type: TextInputType.phone),
+                      _buildInputField(_phoneCtrl, 'Phone Number', Icons.phone_android_rounded, type: TextInputType.phone),
                     ] else ...[
-                      _InputField(controller: _otpCtrl, hint: '6-digit code', icon: Icons.lock_outline, type: TextInputType.number),
-                      const SizedBox(height: 8),
-                      GestureDetector(
-                        onTap: () => setState(() { _otpSent = false; _otpCtrl.clear(); }),
-                        child: const Text('← Change number', style: TextStyle(color: _primary, fontSize: 12)),
+                      _buildInputField(_otpCtrl, '6-Digit OTP', Icons.lock_open_rounded, type: TextInputType.number),
+                      const SizedBox(height: 12),
+                      TextButton.icon(
+                        onPressed: () => setState(() => _otpSent = false),
+                        icon: const Icon(Icons.arrow_back_rounded, size: 14),
+                        label: const Text('Change Phone Number', style: TextStyle(fontSize: 12)),
+                        style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
                       ),
                     ],
-                    const SizedBox(height: 24),
 
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _loading ? null : (_otpSent ? _verifyOtp : _sendOtp),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _primary,
-                          disabledBackgroundColor: _primary.withOpacity(0.5),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          elevation: 0,
-                        ),
-                        child: _loading
-                            ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : Text(_otpSent ? 'Verify & Continue' : (_isSignUp ? 'Sign Up' : 'Get OTP'),
-                                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 32),
+
+                    ElevatedButton(
+                      onPressed: _otpSent ? _verifyOtp : _sendOtp,
+                      child: Text(
+                        _otpSent ? 'Verify & Login' : (_isSignUp ? 'Submit Application' : 'Get Access Code →'),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                       ),
                     ),
-                    
-                    if (!_otpSent) ...[
-                      const SizedBox(height: 16),
+
+                    const SizedBox(height: 32),
+
+                    // Toggle Sign In / Sign Up
+                    if (!_otpSent)
                       Center(
                         child: TextButton(
                           onPressed: () => setState(() => _isSignUp = !_isSignUp),
-                          child: Text(_isSignUp ? 'Already have an account? Sign In' : 'New Pharmacy? Register Here',
-                               style: const TextStyle(color: _primary, fontSize: 13, fontWeight: FontWeight.w600)),
+                          child: RichText(
+                            text: TextSpan(
+                              style: const TextStyle(color: Colors.grey, fontSize: 14),
+                              children: [
+                                TextSpan(text: _isSignUp ? 'Already have an account? ' : 'New Pharmacy Partner? '),
+                                TextSpan(
+                                  text: _isSignUp ? 'Login Here' : 'Register Now',
+                                  style: TextStyle(color: primary, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                    ],
                   ],
                 ),
               ),
-              const SizedBox(height: 40),
-              const Text('AfyaLinks © 2026', style: TextStyle(color: Colors.grey, fontSize: 11)),
-              const SizedBox(height: 12),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
-}
 
-class _InputField extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final IconData icon;
-  final TextInputType type;
-  const _InputField({required this.controller, required this.hint, required this.icon, required this.type});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F8F1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: type,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-          prefixIcon: Icon(icon, color: const Color(0xFF1B5E20), size: 20),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
-        ),
+  Widget _buildInputField(TextEditingController ctrl, String label, IconData icon, {TextInputType type = TextInputType.text}) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: type,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 20),
       ),
     );
   }

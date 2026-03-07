@@ -452,93 +452,131 @@ class _PharmProfileScreenState extends State<PharmProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+
+    if (_isLoading) {
+      return Center(child: CircularProgressIndicator(color: primary));
+    }
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
       child: Column(
         children: [
-          // Avatar + name
+          // Premium Profile Header
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 28),
+            padding: const EdgeInsets.symmetric(vertical: 32),
             decoration: BoxDecoration(
-              color: _primary,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: _primary.withOpacity(0.25), blurRadius: 14, offset: const Offset(0, 5))],
-            ),
-            child: Column(children: [
-              Container(
-                width: 72, height: 72,
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
-                child: const Icon(Icons.local_pharmacy_rounded, color: Colors.white, size: 38),
+              gradient: LinearGradient(
+                colors: [primary, primary.withOpacity(0.8)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              const SizedBox(height: 12),
-              Text(widget.pharmacyName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
-                child: const Text('Verified Pharmacy', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-              ),
-            ]),
-          ),
-          const SizedBox(height: 20),
-
-          // Info section
-            _InfoCard(children: [
-              _InfoRow(Icons.business_rounded, 'Business Name', widget.pharmacyName),
-              const _Divider(),
-              _InfoRow(Icons.location_on_rounded, 'Address', _profileData?['address'] ?? 'N/A'),
-              const _Divider(),
-              _InfoRow(Icons.phone_rounded, 'Contact', _profileData?['phone'] ?? 'N/A'),
-              const _Divider(),
-              _InfoRow(Icons.badge_rounded, 'License No.', _profileData?['license_number'] ?? 'N/A'),
-              
-              if (_profileData?['supply_areas'] != null && (_profileData!['supply_areas'] as List).isNotEmpty) ...[
-                const _Divider(),
-                _InfoRow(Icons.local_shipping_rounded, 'Supply Areas', (_profileData!['supply_areas'] as List).join(', ')),
-              ] else ...[
-                const _Divider(),
-                const _InfoRow(Icons.local_shipping_rounded, 'Supply Areas', 'Not Set (Available Everywhere)'),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: primary.withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                )
               ],
-              
-              const _Divider(),
-              _InfoRow(Icons.payments_rounded, 'Payout Method', _profileData?['preferred_payout_method'] ?? 'Not Set'),
-            ]),
-          ],
-          const SizedBox(height: 14),
-
-          // Settings
-          _InfoCard(children: [
-            _SettingsRow(Icons.upload_file_rounded, 'Upload Verification Docs', _green, _uploadDoc),
-            const _Divider(),
-            _SettingsRow(Icons.list_alt_rounded, 'Manage Price Lists', _primary, _uploadPriceList),
-            const _Divider(),
-            _SettingsRow(Icons.receipt_long_rounded, 'View Invoices', Colors.blueGrey, () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const PharmInvoicesScreen()));
-            }),
-
-            const _Divider(),
-            _SettingsRow(Icons.map_rounded, 'Manage Supply Areas', const Color(0xFF1B5E20), _showUpdateSupplyAreasDialog),
-            const _Divider(),
-            _SettingsRow(Icons.edit_location_alt_rounded, 'Update Pharmacy Location', const Color(0xFF1B5E20), _showUpdateLocationDialog),
-            const _Divider(),
-            _SettingsRow(Icons.notifications_outlined, 'Notification Settings', Colors.blueGrey, _showNotificationSettings),
-            const _Divider(),
-            _SettingsRow(Icons.help_outline, 'Help & Support', Colors.blue, _launchSupportEmail),
-          ]),
+            ),
+            child: Column(
+              children: [
+                Stack(
+                  children: [
+                    Container(
+                      width: 90,
+                      height: 90,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+                      ),
+                      child: const Icon(Icons.local_pharmacy_rounded, color: Colors.white, size: 48),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                        child: Icon(Icons.verified_rounded, color: primary, size: 20),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  widget.pharmacyName,
+                  style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Authenticated Partner',
+                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 24),
 
+          // Business Information Card
+          _buildSectionHeader('Business Profile'),
+          _InfoCard(children: [
+            _InfoRow(Icons.business_rounded, 'Legal Name', widget.pharmacyName),
+            const _Divider(),
+            _InfoRow(Icons.location_on_rounded, 'Operational Address', _profileData?['address'] ?? 'Address not set'),
+            const _Divider(),
+            _InfoRow(Icons.phone_iphone_rounded, 'Primary Contact', _profileData?['phone'] ?? 'Phone not set'),
+            const _Divider(),
+            _InfoRow(Icons.badge_rounded, 'Pharmacy License', _profileData?['license_number'] ?? 'Verification Pending'),
+            const _Divider(),
+            _InfoRow(Icons.local_shipping_rounded, 'Authorized Regions', 
+                (_profileData?['supply_areas'] as List?)?.isEmpty ?? true 
+                    ? 'Nationwide / Not Set'
+                    : (_profileData!['supply_areas'] as List).join(', ')),
+          ]),
+          const SizedBox(height: 16),
+
+          // Platform Settings Card
+          _buildSectionHeader('Operations & Compliance'),
+          _InfoCard(children: [
+            _SettingsRow(Icons.draw_rounded, 'Verification Documents', primary, _uploadDoc),
+            const _Divider(),
+            _SettingsRow(Icons.playlist_add_check_rounded, 'Price List Management', primary, _uploadPriceList),
+            const _Divider(),
+            _SettingsRow(Icons.receipt_long_rounded, 'Platform Invoices', Colors.blue, () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const PharmInvoicesScreen()));
+            }),
+            const _Divider(),
+            _SettingsRow(Icons.share_location_rounded, 'Set Delivery Areas', primary, _showUpdateSupplyAreasDialog),
+            const _Divider(),
+            _SettingsRow(Icons.gps_fixed_rounded, 'Calibrate GPS Location', primary, _showUpdateLocationDialog),
+            const _Divider(),
+            _SettingsRow(Icons.notifications_active_outlined, 'Alert Preferences', Colors.blueGrey, _showNotificationSettings),
+            const _Divider(),
+            _SettingsRow(Icons.help_center_outlined, 'Partner Support', Colors.orange, _launchSupportEmail),
+          ]),
+          const SizedBox(height: 32),
+
+          // Logout Action
           SizedBox(
             width: double.infinity,
-            height: 52,
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 20),
-              label: const Text('Sign Out', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+            child: TextButton.icon(
               onPressed: () => _showSignOutDialog(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade700,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                elevation: 0,
+              icon: const Icon(Icons.logout_rounded, color: Colors.red),
+              label: const Text('Sign Out of Portal', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.red.withOpacity(0.2))),
               ),
             ),
           ),
@@ -546,6 +584,20 @@ class _PharmProfileScreenState extends State<PharmProfileScreen> {
       ),
     );
   }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          title.toUpperCase(),
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500, letterSpacing: 1.2),
+        ),
+      ),
+    );
+  }
+}
 
   void _showSignOutDialog(BuildContext context) {
     showDialog(

@@ -17,7 +17,8 @@ import {
     upsertDriverRoute,
     deleteDriverRoute,
     getSystemSettings,
-    updateSystemSettings
+    updateSystemSettings,
+    getAllDriverLocations
 } from '../controllers/admin.controller';
 import { adminGetPayoutRequests, adminGetPayoutAlerts, adminMarkPayoutPaid } from '../controllers/payout.controller';
 import { adminConfirmPayment, adminCheckPesapalStatus } from '../controllers/payment.controller';
@@ -59,5 +60,8 @@ router.get('/payments/status/:tracking_id', adminCheckPesapalStatus);
 // System Settings
 router.get('/settings', getSystemSettings);
 router.post('/settings', updateSystemSettings);
+
+// Live Monitoring
+router.get('/locations', getAllDriverLocations);
 
 export default router;

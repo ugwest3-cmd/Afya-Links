@@ -429,3 +429,21 @@ export const deleteDriverRoute = async (req: AuthRequest, res: Response): Promis
         res.status(500).json({ success: false, message: e.message });
     }
 }
+
+// 8. Get All Driver Locations (Live Map)
+export const getAllDriverLocations = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { data: locations, error } = await supabase
+            .from('driver_locations')
+            .select(`
+                latitude, longitude, updated_at,
+                driver: users(id, name, phone)
+            `);
+
+        if (error) throw error;
+
+        res.status(200).json({ success: true, locations });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+}

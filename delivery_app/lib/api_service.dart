@@ -97,14 +97,22 @@ class ApiService {
     return http.post(Uri.parse('$baseUrl/orders/$id/accept'), headers: headers);
   }
 
-  static Future<http.Response> confirmPickup(String id) async {
+  static Future<http.Response> confirmPickup(String id, String orderCode) async {
     final headers = await _authHeaders();
-    return http.post(Uri.parse('$baseUrl/orders/$id/pickup'), headers: headers);
+    return http.post(
+      Uri.parse('$baseUrl/orders/$id/pickup'), 
+      headers: headers,
+      body: jsonEncode({'order_code': orderCode}),
+    );
   }
 
-  static Future<http.Response> confirmDelivery(String id) async {
+  static Future<http.Response> confirmDelivery(String id, String otp) async {
     final headers = await _authHeaders();
-    return http.post(Uri.parse('$baseUrl/orders/$id/deliver'), headers: headers);
+    return http.post(
+      Uri.parse('$baseUrl/orders/$id/deliver'), 
+      headers: headers,
+      body: jsonEncode({'otp': otp}),
+    );
   }
 
   // ── Notifications ────────────────────────────────────────────────────────

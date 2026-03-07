@@ -8,6 +8,7 @@ import { Verifications } from './pages/Verifications';
 import { Users } from './pages/Users';
 import { Orders } from './pages/Orders';
 import { Drivers } from './pages/Drivers';
+import { LiveMap } from './pages/LiveMap';
 import { Notifications } from './pages/Notifications';
 import { Invoices } from './pages/Invoices';
 import { Escrow } from './pages/Escrow';
@@ -36,6 +37,7 @@ const AppRoutes = () => {
         <Route index element={<Dashboard />} />
         <Route path="users" element={<Users />} />
         <Route path="verifications" element={<Verifications />} />
+        <Route path="map" element={<LiveMap />} />
         <Route path="orders" element={<Orders />} />
         <Route path="drivers" element={<Drivers />} />
         <Route path="notifications" element={<Notifications />} />

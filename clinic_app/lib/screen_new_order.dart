@@ -14,6 +14,9 @@ class NewOrderScreen extends StatefulWidget {
 }
 
 class _NewOrderScreenState extends State<NewOrderScreen> {
+  final PageController _pageController = PageController();
+  int _currentStep = 0;
+
   // --- Drug items list ---
   final List<_DrugItem> _drugs = [_DrugItem()];
 
@@ -36,6 +39,7 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
 
   @override
   void dispose() {
+    _pageController.dispose();
     _addressCtrl.dispose();
     for (var drug in _drugs) {
       drug.dispose();
@@ -101,6 +105,20 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
     return hasValidDrug && _selectedPharmacyIds.isNotEmpty && _addressCtrl.text.isNotEmpty;
   }
 
+  void _nextStep() {
+    if (_currentStep < 2) {
+      _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+    } else {
+      _goToOffers();
+    }
+  }
+
+  void _prevStep() {
+    if (_currentStep > 0) {
+      _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+    }
+  }
+
   void _goToOffers() {
     final validDrugs = _drugs
         .where((d) => d.nameCtrl.text.trim().isNotEmpty && d.quantityCtrl.text.trim().isNotEmpty)
@@ -123,177 +141,255 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          _HeaderCard(
-            step: 1,
-            totalSteps: 3,
-            icon: Icons.medication_rounded,
-            title: 'What do you need?',
-            subtitle: 'Add drugs and select pharmacies',
+    return Column(
+      children: [
+        // Stepper Progress
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
+            children: [
+              _stepIndicator(0, 'Items', Icons.medication_rounded),
+              _stepConnector(0),
+              _stepIndicator(1, 'Pharmacies', Icons.local_pharmacy_rounded),
+              _stepConnector(1),
+              _stepIndicator(2, 'Review', Icons.fact_check_rounded),
+            ],
           ),
-          const SizedBox(height: 22),
-
-          // ─── STEP 1: Drug Items ──────────────────────────────────────────
-          _sectionLabel('💊 Drug Items'),
-          const SizedBox(height: 10),
-          ..._drugs.asMap().entries.map((e) => _DrugRow(
-                item: e.value,
-                index: e.key,
-                canRemove: _drugs.length > 1,
-                onRemove: () {
-                  e.value.dispose();
-                  setState(() => _drugs.removeAt(e.key));
-                },
-                onChanged: () => setState(() {}),
-              )),
-          TextButton.icon(
-            onPressed: () => setState(() => _drugs.add(_DrugItem())),
-            icon: const Icon(Icons.add_circle_outline, color: _primary, size: 18),
-            label: const Text('Add another drug', style: TextStyle(color: _primary, fontSize: 13)),
+        ),
+        
+        Expanded(
+          child: PageView(
+            controller: _pageController,
+            physics: const NeverScrollableScrollPhysics(),
+            onPageChanged: (idx) => setState(() => _currentStep = idx),
+            children: [
+              _buildStep1(),
+              _buildStep2(),
+              _buildStep3(),
+            ],
           ),
+        ),
 
-          const SizedBox(height: 20),
-          const Divider(),
-          const SizedBox(height: 14),
-
-          // ─── STEP 2: Pharmacy Selection ──────────────────────────────────
-          Row(children: [
-            _sectionLabel('🏪 Select Pharmacies'),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(color: _primary.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-              child: Text('${_selectedPharmacyIds.length}/2 selected',
-                  style: const TextStyle(color: _primary, fontSize: 11, fontWeight: FontWeight.bold)),
-            ),
-          ]),
-          const SizedBox(height: 6),
-          const Text('We show you hidden prices from your selected pharmacies. Max 2.',
-              style: TextStyle(color: Colors.grey, fontSize: 12)),
-          const SizedBox(height: 12),
-
-          _loadingPharmacies
-              ? const Center(child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: CircularProgressIndicator(color: _primary),
-                ))
-              : Column(
-                  children: _pharmacies.map((p) {
-                    final isSelected = _selectedPharmacyIds.contains(p['id']);
-                    return GestureDetector(
-                      onTap: () => _togglePharmacy(p['id']),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: isSelected ? _primary : Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: isSelected ? _primary : Colors.grey.shade200, width: isSelected ? 2 : 1),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(isSelected ? Icons.check_circle_rounded : Icons.local_pharmacy_outlined,
-                                color: isSelected ? Colors.white : _primary, size: 22),
-                            const SizedBox(width: 12),
-                            Expanded(child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(p['name'] ?? '',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: isSelected ? Colors.white : Colors.black87,
-                                      fontSize: 14,
-                                    )),
-                                Text(p['address'] ?? '',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: isSelected ? Colors.white70 : Colors.grey,
-                                    )),
-                              ],
-                            )),
-                            if (isSelected)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                                child: const Text('Selected', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                              ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-
-          const SizedBox(height: 14),
-          const Divider(),
-          const SizedBox(height: 14),
-
-          // ─── Delivery Address ────────────────────────────────────────────
-          _sectionLabel('📍 Delivery Address'),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0F4FF),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: TextField(
-              controller: _addressCtrl,
-              readOnly: true,
-              decoration: InputDecoration(
-                hintText: 'Loading address...',
-                hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                prefixIcon: const Icon(Icons.location_on_rounded, color: _primary, size: 20),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.edit, size: 18, color: _primary),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Please go to your Profile to update your default delivery address.')),
-                    );
-                  },
-                ),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
-              ),
-            ),
+        // Bottom Navigation
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -2))],
           ),
-          const SizedBox(height: 28),
-
-          // CTA
-          SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: ElevatedButton(
-              onPressed: _canProceed ? _goToOffers : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _primary,
-                disabledBackgroundColor: Colors.grey.shade300,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                elevation: 0,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _canProceed ? 'View Price Offers →' : 'Fill in all fields',
-                    style: TextStyle(
-                      color: _canProceed ? Colors.white : Colors.grey.shade500,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+          child: Row(
+            children: [
+              if (_currentStep > 0)
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _prevStep,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: const BorderSide(color: _primary),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
+                    child: const Text('Back', style: TextStyle(color: _primary, fontWeight: FontWeight.bold)),
                   ),
-                ],
+                ),
+              if (_currentStep > 0) const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: ElevatedButton(
+                  onPressed: _canProceedAtStep(_currentStep) ? _nextStep : null,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: _primary,
+                    disabledBackgroundColor: Colors.grey.shade300,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    _currentStep == 2 ? 'View Price Offers →' : 'Continue',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
+        ),
+      ],
+    );
+  }
+
+  bool _canProceedAtStep(int step) {
+    if (step == 0) return _drugs.any((d) => d.nameCtrl.text.trim().isNotEmpty && d.quantityCtrl.text.trim().isNotEmpty);
+    if (step == 1) return _selectedPharmacyIds.isNotEmpty;
+    if (step == 2) return _addressCtrl.text.isNotEmpty;
+    return false;
+  }
+
+  Widget _stepIndicator(int index, String label, IconData icon) {
+    bool active = _currentStep >= index;
+    bool isCurrent = _currentStep == index;
+    return Expanded(
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: active ? _primary : Colors.grey.shade200,
+              shape: BoxShape.circle,
+              border: isCurrent ? Border.all(color: _primary.withOpacity(0.3), width: 4) : null,
+            ),
+            child: Icon(icon, color: active ? Colors.white : Colors.grey, size: 18),
+          ),
+          const SizedBox(height: 4),
+          Text(label, style: TextStyle(
+            fontSize: 10, 
+            fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+            color: active ? _primary : Colors.grey
+          )),
         ],
       ),
+    );
+  }
+
+  Widget _stepConnector(int index) {
+    bool active = _currentStep > index;
+    return Container(
+      width: 20,
+      height: 2,
+      margin: const EdgeInsets.only(bottom: 20),
+      color: active ? _primary : Colors.grey.shade200,
+    );
+  }
+
+  Widget _buildStep1() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _sectionLabel('💊 Drug Items'),
+        const SizedBox(height: 10),
+        ..._drugs.asMap().entries.map((e) => _DrugRow(
+              item: e.value,
+              index: e.key,
+              canRemove: _drugs.length > 1,
+              onRemove: () {
+                e.value.dispose();
+                setState(() => _drugs.removeAt(e.key));
+              },
+              onChanged: () => setState(() {}),
+            )),
+        TextButton.icon(
+          onPressed: () => setState(() => _drugs.add(_DrugItem())),
+          icon: const Icon(Icons.add_circle_outline, color: _primary, size: 18),
+          label: const Text('Add another drug', style: TextStyle(color: _primary, fontSize: 13)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStep2() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Row(children: [
+          _sectionLabel('🏪 Select Pharmacies'),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(color: _primary.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            child: Text('${_selectedPharmacyIds.length}/2 selected',
+                style: const TextStyle(color: _primary, fontSize: 11, fontWeight: FontWeight.bold)),
+          ),
+        ]),
+        const SizedBox(height: 6),
+        const Text('Select up to 2 pharmacies to compare prices.',
+            style: TextStyle(color: Colors.grey, fontSize: 12)),
+        const SizedBox(height: 16),
+        if (_loadingPharmacies)
+          const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
+        else
+          ..._pharmacies.map((p) {
+            final isSelected = _selectedPharmacyIds.contains(p['id']);
+            return GestureDetector(
+              onTap: () => _togglePharmacy(p['id']),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isSelected ? _primary.withOpacity(0.05) : Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: isSelected ? _primary : Colors.grey.shade200, width: isSelected ? 2 : 1),
+                ),
+                child: Row(
+                  children: [
+                    Icon(isSelected ? Icons.check_circle_rounded : Icons.local_pharmacy_outlined,
+                        color: isSelected ? _primary : Colors.grey, size: 22),
+                    const SizedBox(width: 12),
+                    Expanded(child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(p['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        Text(p['address'] ?? '', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      ],
+                    )),
+                  ],
+                ),
+              ),
+            );
+          }),
+      ],
+    );
+  }
+
+  Widget _buildStep3() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _sectionLabel('📍 Delivery Address'),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0F4FF),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _primary.withOpacity(0.1)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.location_on_rounded, color: _primary, size: 20),
+                  SizedBox(width: 8),
+                  Text('Confirm Location', style: TextStyle(fontWeight: FontWeight.bold, color: _primary)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(_deliveryAddress, style: const TextStyle(fontSize: 14, color: Colors.black87)),
+              const Divider(height: 24),
+              TextButton.icon(
+                onPressed: () {
+                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Update address in Profile section.')));
+                },
+                icon: const Icon(Icons.edit_location_alt_rounded, size: 18),
+                label: const Text('Change default address'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        _sectionLabel('📋 Order Summary'),
+        const SizedBox(height: 12),
+        ..._drugs.where((d) => d.nameCtrl.text.isNotEmpty).map((d) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            children: [
+              const Icon(Icons.circle, size: 6, color: _primary),
+              const SizedBox(width: 10),
+              Expanded(child: Text(d.nameCtrl.text, style: const TextStyle(fontSize: 13))),
+              Text('Qty: ${d.quantityCtrl.text}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            ],
+          ),
+        )),
+      ],
     );
   }
 
@@ -372,10 +468,12 @@ class _DrugRow extends StatelessWidget {
               onChanged();
             },
             fieldViewBuilder: (ctx, ctrl, focusNode, onSubmit) {
-              // Sync the autocomplete's internal controller with our item controller ONCE
-              if (ctrl.text != item.nameCtrl.text) {
-                ctrl.text = item.nameCtrl.text;
-              }
+              // Use a PostFrameCallback or a more stable sync to avoid setstate during build
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (ctrl.text != item.nameCtrl.text) {
+                  ctrl.text = item.nameCtrl.text;
+                }
+              });
 
               return TextField(
                 controller: ctrl,

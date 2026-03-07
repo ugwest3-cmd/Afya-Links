@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'api_service.dart';
+import 'screen_tracking.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String clinicName;
@@ -130,13 +131,69 @@ class _DashboardScreenState extends State<DashboardScreen> {
               mainAxisSpacing: 12,
               childAspectRatio: 1.8,
               children: [
-                _StatCard('Pending', _stats['pending'].toString(), Icons.hourglass_top_rounded, orange),
-                _StatCard('Active', _stats['in_transit'].toString(), Icons.local_shipping_rounded, primary),
-                _StatCard('Delivered', _stats['delivered'].toString(), Icons.check_circle_rounded, green),
-                _StatCard('Rejected', _stats['rejected'].toString(), Icons.cancel_rounded, red),
+                _StatCard('Pending', _stats['pending'].toString(), Icons.hourglass_top_rounded, orange, () {
+                  // Navigate to orders with Pending filter
+                  Navigator.pushNamed(context, '/orders', arguments: 'AWAITING_PAYMENT');
+                }),
+                _StatCard('Active', _stats['in_transit'].toString(), Icons.local_shipping_rounded, primary, () {
+                  Navigator.pushNamed(context, '/orders', arguments: 'InTransit');
+                }),
+                _StatCard('Delivered', _stats['delivered'].toString(), Icons.check_circle_rounded, green, () {
+                  Navigator.pushNamed(context, '/orders', arguments: 'Completed');
+                }),
+                _StatCard('Rejected', _stats['rejected'].toString(), Icons.cancel_rounded, red, () {
+                  Navigator.pushNamed(context, '/orders', arguments: 'CANCELLED');
+                }),
               ],
             ),
             const SizedBox(height: 24),
+
+            // Tracking Widget (If active orders exist)
+            if (_recentOrders.any((o) => ['ASSIGNED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].contains(o['status']))) ...[
+              const Text('Active Tracking', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87)),
+              const SizedBox(height: 12),
+              ..._recentOrders.where((o) => ['ASSIGNED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].contains(o['status'])).map((o) {
+                final oIdStr = o['id']?.toString() ?? '';
+                final shortId = oIdStr.length > 8 ? oIdStr.substring(0, 8).toUpperCase() : oIdStr;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [BoxShadow(color: primary.withOpacity(0.08), blurRadius: 12, offset: const Offset(0, 4))],
+                    border: Border.all(color: primary.withOpacity(0.1)),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: primary.withOpacity(0.1),
+                        child: const Icon(Icons.delivery_dining_rounded, color: primary),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Order #$shortId', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            Text(o['status']?.toString().replaceAll('_', ' ') ?? '', style: TextStyle(color: primary, fontSize: 12, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => TrackingScreen(orderId: oIdStr, orderCode: '#$shortId')));
+                        },
+                        icon: const Icon(Icons.map_outlined, size: 16),
+                        label: const Text('Track'),
+                        style: TextButton.styleFrom(foregroundColor: primary),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              const SizedBox(height: 12),
+            ],
 
             // Quick Actions Row
             const Text('Quick Actions', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87)),
@@ -202,36 +259,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _showConfirmDeliveryDialog(BuildContext context) {
-    final orderIdCtrl = TextEditingController();
-    final codeCtrl = TextEditingController();
-    showDialog(
+    final activeOrders = _recentOrders.where((o) => ['ASSIGNED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].contains(o['status'])).toList();
+    
+    showModalBottomSheet(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Confirm Delivery', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Column(
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(controller: orderIdCtrl, decoration: const InputDecoration(labelText: 'Order ID', prefixIcon: Icon(Icons.receipt))),
-            const SizedBox(height: 12),
-            TextField(controller: codeCtrl, decoration: const InputDecoration(labelText: 'Order Code', prefixIcon: Icon(Icons.qr_code))),
+            const Text('Confirm Delivery', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            if (activeOrders.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(child: Text('No active orders awaiting delivery', style: TextStyle(color: Colors.grey))),
+              )
+            else
+              ...activeOrders.map((o) {
+                final oIdStr = o['id']?.toString() ?? '';
+                final shortId = oIdStr.length > 8 ? oIdStr.substring(0, 8).toUpperCase() : oIdStr;
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const CircleAvatar(backgroundColor: Colors.green, child: Icon(Icons.check, color: Colors.white)),
+                  title: Text('Order #$shortId'),
+                  subtitle: Text(o['items_summary'] ?? 'Medicines'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    // Open the confirm delivery dialog from screen_orders.dart logic
+                    // Actually, we can just navigate to orders and filter for InTransit
+                    Navigator.pushNamed(context, '/orders', arguments: 'InTransit');
+                  },
+                );
+              }),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Close'),
+              ),
+            ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Submitting...'),
-                backgroundColor: Color(0xFF2E7D32),
-                behavior: SnackBarBehavior.floating,
-              ));
-            },
-            child: const Text('Confirm', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
   }
@@ -241,34 +319,38 @@ class _StatCard extends StatelessWidget {
   final String label, value;
   final IconData icon;
   final Color color;
-  const _StatCard(this.label, this.value, this.icon, this.color);
+  final VoidCallback onTap;
+  const _StatCard(this.label, this.value, this.icon, this.color, this.onTap);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
-              Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-            ],
-          ),
-        ],
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
+                Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

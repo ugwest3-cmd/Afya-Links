@@ -43,6 +43,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
     _loadOrders();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is String) {
+      _filter = args;
+    }
+  }
+
   Future<void> _loadOrders() async {
     setState(() => _loading = true);
     try {
@@ -196,9 +205,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 TextField(
                   controller: codeCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Enter Order Code from Pharmacy',
-                    hintText: 'Code written on receipt/parcel',
-                    prefixIcon: const Icon(Icons.qr_code_rounded, color: _green),
+                    labelText: 'Enter Delivery Code',
+                    hintText: 'Enter the code shown in your app or on receipt',
+                    prefixIcon: const Icon(Icons.security, color: _green),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -375,6 +384,31 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                     Text(itemsSummary, style: const TextStyle(color: Colors.black87, fontSize: 13)),
                                     const SizedBox(height: 4),
                                     Text(displayDate, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                                    if (o['delivery_otp'] != null && (status == 'IN_TRANSIT' || status == 'OUT_FOR_DELIVERY')) ...[
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: _green.withOpacity(0.08),
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(color: _green.withOpacity(0.2)),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.vpn_key_outlined, size: 20, color: _green),
+                                            const SizedBox(width: 12),
+                                            Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                const Text('DELIVERY CONFIRMATION CODE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: _green)),
+                                                const SizedBox(height: 2),
+                                                Text(o['delivery_otp'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _green, letterSpacing: 2)),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                     if (status == 'AWAITING_PAYMENT') ...[
                                       const SizedBox(height: 12),
                                       SizedBox(

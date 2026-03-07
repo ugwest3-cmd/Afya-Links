@@ -1,7 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'api_service.dart';
+import 'dart:convert';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -11,158 +10,53 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  bool _isLoading = true;
+  bool _loading = true;
   List<dynamic> _notifications = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchNotifications();
+    _loadNotifications();
   }
 
-  Future<void> _fetchNotifications() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadNotifications() async {
+    setState(() => _loading = true);
     try {
       final res = await ApiService.getNotifications();
       if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
         setState(() {
-          _notifications = data['notifications'] ?? [];
+          _notifications = jsonDecode(res.body)['notifications'] ?? [];
         });
-        
-        if (_notifications.any((n) => !(n['is_read'] ?? false))) {
-          _markAsRead();
-        }
       }
     } catch (e) {
-      debugPrint('Error fetching notifications: $e');
+      debugPrint('Error: $e');
     } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _markAsRead() async {
-    try {
-      await ApiService.markNotificationsRead();
-    } catch (e) {
-      debugPrint('Error marking notifications as read: $e');
-    }
-  }
-  
-  String _formatTime(String? dateStr) {
-    if (dateStr == null) return '';
-    try {
-      final date = DateTime.parse(dateStr).toLocal();
-      final now = DateTime.now();
-      final diff = now.difference(date);
-      
-      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-      if (diff.inHours < 24) return '${diff.inHours}h ago';
-      if (diff.inDays < 7) return '${diff.inDays}d ago';
-      return DateFormat('MMM d, yyyy').format(date);
-    } catch (_) {
-      return '';
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    const primaryIndigo = Color(0xFF312E81);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notifications'),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _notifications.isEmpty
-              ? _buildEmptyState()
-              : RefreshIndicator(
-                  onRefresh: _fetchNotifications,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(16),
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(title: const Text('NOTIFICATIONS')),
+      body: RefreshIndicator(
+        onRefresh: _loadNotifications,
+        color: primaryIndigo,
+        child: _loading && _notifications.isEmpty
+            ? const Center(child: CircularProgressIndicator())
+            : _notifications.isEmpty
+                ? _buildEmptyState()
+                : ListView.builder(
+                    padding: const EdgeInsets.all(24),
                     itemCount: _notifications.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
-                      final notif = _notifications[index];
-                      final isRead = notif['is_read'] ?? false;
-                      
-                      return Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: isRead ? Colors.white : const Color(0xFFF0FDF4),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isRead ? const Color(0xFFE5E7EB) : const Color(0xFF86EFAC),
-                            width: 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.02),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            )
-                          ],
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: isRead ? const Color(0xFFF3F4F6) : const Color(0xFFDCFCE7),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.notifications_active_rounded,
-                                color: isRead ? const Color(0xFF9CA3AF) : const Color(0xFF16A34A),
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          notif['title'] ?? 'Notification',
-                                          style: TextStyle(
-                                            fontWeight: isRead ? FontWeight.w600 : FontWeight.bold,
-                                            fontSize: 16,
-                                            color: const Color(0xFF111827),
-                                          ),
-                                        ),
-                                      ),
-                                      Text(
-                                        _formatTime(notif['created_at']),
-                                        style: TextStyle(
-                                          color: isRead ? const Color(0xFF9CA3AF) : const Color(0xFF16A34A),
-                                          fontSize: 12,
-                                          fontWeight: isRead ? FontWeight.normal : FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    notif['body'] ?? '',
-                                    style: const TextStyle(
-                                      color: Color(0xFF4B5563),
-                                      fontSize: 14,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
+                      return _buildNotificationCard(_notifications[index], primaryIndigo);
                     },
                   ),
-                ),
+      ),
     );
   }
 
@@ -171,23 +65,53 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF3F4F6),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.notifications_off_rounded, size: 48, color: const Color(0xFF9CA3AF)),
-          ),
+          Icon(Icons.notifications_none_rounded, size: 60, color: const Color(0xFFE2E8F0)),
           const SizedBox(height: 16),
-          const Text(
-            'No notifications yet',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF111827)),
+          const Text('All caught up! No new notifications.', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13, fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationCard(dynamic n, Color indigo) {
+    String title = n['title'] ?? 'New Alert';
+    String body = n['body'] ?? '';
+    
+    DateTime date = n['created_at'] != null ? DateTime.parse(n['created_at']).toLocal() : DateTime.now();
+    String time = '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF1F5F9)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: indigo.withOpacity(0.08), shape: BoxShape.circle),
+            child: Icon(Icons.notifications_active_rounded, color: indigo, size: 20),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'You will be alerted when new orders arrive.',
-            style: TextStyle(color: Color(0xFF6B7280), fontSize: 14),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFF1E293B))),
+                    Text(time, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(body, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, height: 1.4)),
+              ],
+            ),
           ),
         ],
       ),

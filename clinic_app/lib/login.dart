@@ -122,96 +122,108 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 60),
               // Logo
               Container(
-                width: 80, height: 80,
+                width: 90, height: 90,
                 decoration: BoxDecoration(
-                  color: _primary,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [BoxShadow(color: _primary.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 8))],
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0D47A1), Color(0xFF1976D2)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(color: const Color(0xFF0D47A1).withOpacity(0.3), blurRadius: 25, offset: const Offset(0, 10))
+                  ],
                 ),
-                child: const Icon(Icons.local_hospital_rounded, color: Colors.white, size: 44),
+                child: const Icon(Icons.local_hospital_rounded, color: Colors.white, size: 50),
               ),
-              const SizedBox(height: 20),
-              const Text('AfyaLinks', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0D47A1))),
-              const Text('Clinic Portal', style: TextStyle(fontSize: 14, color: Colors.grey)),
-              const SizedBox(height: 40),
+              const SizedBox(height: 24),
+              const Text('AfyaLinks', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF0D47A1), letterSpacing: -0.5)),
+              const Text('Clinic Care Portal', style: TextStyle(fontSize: 15, color: Colors.blueGrey, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 48),
 
               // Card
               Container(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(30),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 20)],
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 40, offset: const Offset(0, 4))],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_otpSent ? 'Enter OTP' : (_isSignUp ? 'Create Account' : 'Sign In'), 
-                         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
+                    Text(_otpSent ? 'Verification' : (_isSignUp ? 'Registration' : 'Welcome Back'), 
+                         style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0D47A1))),
+                    const SizedBox(height: 8),
                     Text(
                       _otpSent
-                          ? 'Enter the code sent to ${_phoneCtrl.text}'
-                          : (_isSignUp ? 'Register your clinic to start ordering' : 'Enter your registered clinic phone number'),
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                          ? 'We\'ve sent a 6-digit code to ${_phoneCtrl.text}'
+                          : (_isSignUp ? 'Enter your details to register your clinic' : 'Sign in to continue to your dashboard'),
+                      style: TextStyle(color: Colors.blueGrey.shade400, fontSize: 13, height: 1.4),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 32),
 
                     if (!_otpSent) ...[
                       if (_isSignUp) ...[
                         _InputField(controller: _nameCtrl, hint: 'Clinic Name', icon: Icons.local_hospital, type: TextInputType.text),
-                        const SizedBox(height: 12),
-                        const Text('Clinic Location', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54)),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 16),
+                        const Text('Clinic Location', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
+                        const SizedBox(height: 8),
                         _LocationInputField(controller: _locationCtrl),
-                        const SizedBox(height: 12),
-                        _InputField(controller: _hwidCtrl, hint: 'Health Worker ID / License No.', icon: Icons.badge, type: TextInputType.text),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
+                        _InputField(controller: _hwidCtrl, hint: 'Worker ID / License No.', icon: Icons.badge, type: TextInputType.text),
+                        const SizedBox(height: 16),
                       ],
-                      _InputField(controller: _phoneCtrl, hint: '+256 700 000 000', icon: Icons.phone, type: TextInputType.phone),
+                      _InputField(controller: _phoneCtrl, hint: '+256 700 000 000', icon: Icons.phone_android_rounded, type: TextInputType.phone),
                     ] else ...[
-                      _InputField(controller: _otpCtrl, hint: '6-digit code', icon: Icons.lock_outline, type: TextInputType.number),
-                      const SizedBox(height: 8),
-                      GestureDetector(
-                        onTap: () => setState(() { _otpSent = false; _otpCtrl.clear(); }),
-                        child: const Text('← Change number', style: TextStyle(color: _primary, fontSize: 12)),
+                      _InputField(controller: _otpCtrl, hint: 'Enter 6-digit code', icon: Icons.lock_person_rounded, type: TextInputType.number),
+                      const SizedBox(height: 12),
+                      Center(
+                        child: TextButton(
+                          onPressed: () => setState(() { _otpSent = false; _otpCtrl.clear(); }),
+                          child: const Text('Change phone number', style: TextStyle(color: Color(0xFF0D47A1), fontSize: 13, fontWeight: FontWeight.w600)),
+                        ),
                       ),
                     ],
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
 
                     SizedBox(
                       width: double.infinity,
-                      height: 50,
+                      height: 56,
                       child: ElevatedButton(
                         onPressed: _loading ? null : (_otpSent ? _verifyOtp : _sendOtp),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _primary,
-                          disabledBackgroundColor: _primary.withOpacity(0.5),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          backgroundColor: const Color(0xFF0D47A1),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           elevation: 0,
                         ),
                         child: _loading
-                            ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : Text(_otpSent ? 'Verify & Continue' : (_isSignUp ? 'Sign Up' : 'Get OTP'),
-                                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                            : Text(_otpSent ? 'Verify OTP' : (_isSignUp ? 'Create Account' : 'Get Started'),
+                                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                     ),
                     
                     if (!_otpSent) ...[
-                      const SizedBox(height: 16),
-                      Center(
-                        child: TextButton(
-                          onPressed: () => setState(() => _isSignUp = !_isSignUp),
-                          child: Text(_isSignUp ? 'Already have an account? Sign In' : 'New Clinic? Create Account',
-                               style: const TextStyle(color: _primary, fontSize: 13, fontWeight: FontWeight.w600)),
-                        ),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(_isSignUp ? 'Already a member?' : 'New to AfyaLinks?', 
+                               style: TextStyle(color: Colors.blueGrey.shade600, fontSize: 13)),
+                          TextButton(
+                            onPressed: () => setState(() => _isSignUp = !_isSignUp),
+                            child: Text(_isSignUp ? 'Sign In' : 'Register Clinic',
+                                 style: const TextStyle(color: Color(0xFF0D47A1), fontSize: 13, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
                       ),
                     ],
                   ],
                 ),
               ),
-              const SizedBox(height: 40),
-              const Text('AfyaLinks © 2026', style: TextStyle(color: Colors.grey, fontSize: 11)),
+              const SizedBox(height: 60),
+              Text('Powered by AfyaLinks Health Solutions', style: TextStyle(color: Colors.blueGrey.shade300, fontSize: 12)),
               const SizedBox(height: 12),
             ],
           ),

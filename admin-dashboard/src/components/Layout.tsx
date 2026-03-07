@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
     ShieldCheck, Activity, LogOut, LayoutDashboard,
-    Users, Truck, Bell, Package, Zap, DollarSign, Settings
+    Users, Truck, Bell, Package, Zap, DollarSign, Settings, Navigation
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -11,6 +11,7 @@ const NAV_ITEMS = [
     { label: 'Users', icon: Users, path: '/users', section: 'operations' },
     { label: 'Verifications', icon: ShieldCheck, path: '/verifications', section: 'operations' },
     { label: 'Orders', icon: Package, path: '/orders', section: 'operations' },
+    { label: 'Live Monitor', icon: Navigation, path: '/map', section: 'operations' },
     { label: 'Drivers', icon: Truck, path: '/drivers', section: 'operations' },
     { label: 'Notifications', icon: Bell, path: '/notifications', section: 'tools' },
     { label: 'Escrow Ledger', icon: DollarSign, path: '/escrow', section: 'tools' },
@@ -28,6 +29,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
     '/escrow': { title: 'Escrow Ledger', subtitle: 'Manage locked and released funds' },
     '/payouts': { title: 'Pharmacy Payouts', subtitle: 'Review and process withdrawal requests' },
     '/settings': { title: 'Platform Settings', subtitle: 'Configure global commissions and thresholds' },
+    '/map': { title: 'Live Logistics Map', subtitle: 'Real-time monitoring of delivery fleet' },
 };
 
 const Sidebar = () => {
@@ -114,6 +116,15 @@ const Topbar = () => {
                 <span className="topbar-title">{pageInfo.title}</span>
                 <span className="topbar-breadcrumb">{pageInfo.subtitle}</span>
             </div>
+
+            <div className="search-bar" style={{ flex: 1, maxWidth: '400px', margin: '0 2rem' }}>
+                <Bell size={14} color="var(--text-secondary)" />
+                <input
+                    placeholder="Search for orders, users, or drivers..."
+                    style={{ background: 'transparent', border: 'none', outline: 'none', width: '100%', color: 'white', fontSize: '0.85rem' }}
+                />
+            </div>
+
             <div className="topbar-right">
                 <span className="topbar-time">{formatTime(time)}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

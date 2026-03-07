@@ -4,7 +4,7 @@ import 'api_service.dart';
 
 class PharmDashboardScreen extends StatefulWidget {
   final String pharmacyName;
-  final VoidCallback onViewOrders;
+  final Function(String?) onViewOrders;
 
   const PharmDashboardScreen({super.key, required this.pharmacyName, required this.onViewOrders});
 
@@ -16,12 +16,6 @@ class _PharmDashboardScreenState extends State<PharmDashboardScreen> {
   Map<String, dynamic> _stats = {'new': 0, 'accepted': 0, 'ready_transit': 0, 'completed': 0, 'total_earnings': 0, 'pending_balance': 0};
   List<dynamic> _recentOrders = [];
   bool _loading = true;
-
-  static const _primary = Color(0xFF1B5E20);
-  static const _green = Color(0xFF2E7D32);
-  static const _orange = Color(0xFFE65100);
-  static const _blue = Color(0xFF0D47A1);
-  static const _red = Color(0xFFC62828);
 
   @override
   void initState() {
@@ -36,11 +30,11 @@ class _PharmDashboardScreenState extends State<PharmDashboardScreen> {
       final ordersRes = await ApiService.getInboxOrders();
 
       if (statsRes.statusCode == 200) {
-        _stats = Map<String, dynamic>.from(jsonDecode(statsRes.body)['stats']);
+        _stats = Map<String, dynamic>.from(jsonDecode(statsRes.body)['stats'] ?? {});
       }
       if (ordersRes.statusCode == 200) {
-        _recentOrders = jsonDecode(ordersRes.body)['orders'];
-        if (_recentOrders.length > 3) _recentOrders = _recentOrders.sublist(0, 3);
+        _recentOrders = jsonDecode(ordersRes.body)['orders'] ?? [];
+        if (_recentOrders.length > 5) _recentOrders = _recentOrders.sublist(0, 5);
       }
     } catch (e) {
       debugPrint('Error fetching dashboard: $e');
@@ -50,30 +44,39 @@ class _PharmDashboardScreenState extends State<PharmDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+
     if (_loading && _recentOrders.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(child: CircularProgressIndicator(color: primary));
     }
 
     return RefreshIndicator(
       onRefresh: _fetchData,
+      color: primary,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Welcome Banner
+            // Premium Welcome Banner
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF1B5E20), Color(0xFF388E3C)],
+                gradient: LinearGradient(
+                  colors: [primary, const Color(0xFF388E3C)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [BoxShadow(color: _primary.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 6))],
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: primary.withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  )
+                ],
               ),
               child: Row(
                 children: [
@@ -81,23 +84,27 @@ class _PharmDashboardScreenState extends State<PharmDashboardScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Welcome 👋', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                        const Text('Welcome back,', style: TextStyle(color: Colors.white70, fontSize: 13)),
                         const SizedBox(height: 4),
-                        Text(widget.pharmacyName,
-                            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 12),
+                        Text(
+                          widget.pharmacyName,
+                          style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 16),
                         GestureDetector(
-                          onTap: widget.onViewOrders,
+                          onTap: () => widget.onViewOrders(null),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
-                            child: const Row(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.inbox_rounded, color: Color(0xFF1B5E20), size: 16),
-                                SizedBox(width: 6),
-                                Text('View Orders Inbox',
-                                    style: TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.bold, fontSize: 13)),
+                                Icon(Icons.mark_email_unread_rounded, color: primary, size: 18),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Orders Inbox',
+                                  style: TextStyle(color: primary, fontWeight: FontWeight.bold, fontSize: 13),
+                                ),
                               ],
                             ),
                           ),
@@ -106,17 +113,17 @@ class _PharmDashboardScreenState extends State<PharmDashboardScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
-                    child: const Icon(Icons.local_pharmacy_rounded, color: Colors.white, size: 36),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), shape: BoxShape.circle),
+                    child: const Icon(Icons.local_pharmacy_rounded, color: Colors.white, size: 40),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
-            // Stats
-            const Text("Today's Overview", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            // Interactive Stats Section
+            _buildSectionHeader('Operations Overview'),
             const SizedBox(height: 12),
             GridView.count(
               crossAxisCount: 2,
@@ -124,52 +131,90 @@ class _PharmDashboardScreenState extends State<PharmDashboardScreen> {
               physics: const NeverScrollableScrollPhysics(),
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: 1.8,
+              childAspectRatio: 1.6,
               children: [
-                _StatCard('New Orders', _stats['new'].toString(), Icons.notifications_active_rounded, _orange),
-                _StatCard('Accepted', _stats['accepted'].toString(), Icons.check_circle_rounded, _green),
-                _StatCard('Ready/Active', _stats['ready_transit'].toString(), Icons.local_shipping_rounded, _blue),
-                _StatCard('Completed', _stats['completed'].toString(), Icons.done_all_rounded, _primary),
+                _StatCard('Incoming', _stats['new'].toString(), Icons.notifications_active_rounded, Colors.orange, 
+                    () => widget.onViewOrders('PAID')),
+                _StatCard('Processing', _stats['accepted'].toString(), Icons.pending_actions_rounded, Colors.blue, 
+                    () => widget.onViewOrders('ACCEPTED')),
+                _StatCard('In Transit', _stats['ready_transit'].toString(), Icons.local_shipping_rounded, primary, 
+                    () => widget.onViewOrders('READY_FOR_PICKUP')),
+                _StatCard('Completed', _stats['completed'].toString(), Icons.check_circle_rounded, const Color(0xFF2E7D32), 
+                    () => widget.onViewOrders('COMPLETED')),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
-            // Quick Actions
-            const Text('Quick Actions', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            // Quick Access
+            _buildSectionHeader('Quick Access'),
             const SizedBox(height: 12),
             Row(children: [
-              _ActionButton(icon: Icons.inbox_rounded, label: 'Orders Inbox', color: _orange, onTap: widget.onViewOrders),
-              const SizedBox(width: 10),
               _ActionButton(
                 icon: Icons.upload_file_rounded,
-                label: 'Upload CSV',
-                color: _green,
+                label: 'Stock CSV',
+                color: primary,
                 onTap: () => Navigator.pushNamed(context, '/pricelist'),
               ),
-              const SizedBox(width: 10),
-              _ActionButton(icon: Icons.receipt_long_rounded, label: 'Invoices', color: _blue, onTap: () {}),
+              const SizedBox(width: 12),
+              _ActionButton(
+                icon: Icons.account_balance_wallet_rounded,
+                label: 'Wallet',
+                color: Colors.blueGrey,
+                onTap: () => widget.onViewOrders('WALLET'),
+              ),
+              const SizedBox(width: 12),
+              _ActionButton(
+                icon: Icons.history_rounded,
+                label: 'Logs',
+                color: Colors.grey,
+                onTap: () {},
+              ),
             ]),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
             // Recent Orders
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              const Text('Recent Orders', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-              TextButton(onPressed: widget.onViewOrders, child: const Text('See all', style: TextStyle(color: Color(0xFF1B5E20), fontSize: 12))),
-            ]),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildSectionHeader('Recent Orders'),
+                TextButton(
+                  onPressed: () => widget.onViewOrders(null),
+                  child: Text('View All', style: TextStyle(color: primary, fontSize: 13, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
             const SizedBox(height: 4),
             if (_recentOrders.isEmpty)
-              const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('No orders yet', style: TextStyle(color: Colors.grey)))),
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Column(
+                    children: [
+                      Icon(Icons.inbox_outlined, color: Colors.grey, size: 48),
+                      SizedBox(height: 12),
+                      Text('No recent orders found', style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              ),
             ..._recentOrders.map((o) {
               return _OrderTile(
-                id: '#${o['id'].toString().substring(0, 4)}',
+                id: '#${(o['display_id'] ?? o['id']).toString().toUpperCase()}',
                 items: (o['items'] as List?)?.map((i) => i['drug_name']).join(', ') ?? 'Medicines',
                 status: o['status'].toString(),
-                time: 'Recently',
+                time: o['created_at'] != null ? 'Recently' : '',
               );
             }).toList(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 0.2),
     );
   }
 }
@@ -178,28 +223,34 @@ class _StatCard extends StatelessWidget {
   final String label, value;
   final IconData icon;
   final Color color;
-  const _StatCard(this.label, this.value, this.icon, this.color);
+  final VoidCallback onTap;
+  const _StatCard(this.label, this.value, this.icon, this.color, this.onTap);
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
-      ),
-      child: Row(children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-          child: Icon(icon, color: color, size: 20),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
         ),
-        const SizedBox(width: 10),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-          Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
-          Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+        child: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+              Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
+              Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey), overflow: TextOverflow.ellipsis),
+            ]),
+          ),
         ]),
-      ]),
+      ),
     );
   }
 }
@@ -219,7 +270,7 @@ class _ActionButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
             boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
           ),
           child: Column(children: [
@@ -238,9 +289,10 @@ class _OrderTile extends StatelessWidget {
   const _OrderTile({required this.id, required this.items, required this.status, required this.time});
   Color get _color {
     switch (status) {
-      case 'PENDING': return const Color(0xFFE65100);
-      case 'ACCEPTED': return const Color(0xFF2E7D32);
-      case 'READY_FOR_PICKUP': return const Color(0xFF0D47A1);
+      case 'PAID': return Colors.orange;
+      case 'ACCEPTED': return Colors.blue;
+      case 'READY_FOR_PICKUP': return const Color(0xFF1B5E20);
+      case 'COMPLETED': return const Color(0xFF2E7D32);
       default: return Colors.grey;
     }
   }
@@ -253,31 +305,31 @@ class _OrderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
       ),
       child: Row(children: [
         Container(
-          width: 40, height: 40,
-          decoration: BoxDecoration(color: _color.withOpacity(0.08), borderRadius: BorderRadius.circular(10)),
-          child: Icon(Icons.receipt_long_rounded, color: _color, size: 20),
+          width: 44, height: 44,
+          decoration: BoxDecoration(color: _color.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
+          child: Icon(Icons.receipt_long_rounded, color: _color, size: 22),
         ),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(id, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-          Text(items, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          Text(items, style: const TextStyle(color: Colors.grey, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
         ])),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(color: _color.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
             child: Text(_label, style: TextStyle(color: _color, fontSize: 10, fontWeight: FontWeight.bold)),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           Text(time, style: const TextStyle(color: Colors.grey, fontSize: 10)),
         ]),
       ]),

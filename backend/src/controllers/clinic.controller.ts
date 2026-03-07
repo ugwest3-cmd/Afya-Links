@@ -177,7 +177,7 @@ export const confirmDelivery = async (req: AuthRequest, res: Response): Promise<
         // Fetch order to verify code
         const { data: order, error: orderError } = await supabase
             .from('orders')
-            .select('id, status, order_code')
+            .select('id, status, order_code, delivery_otp')
             .eq('id', orderId)
             .eq('clinic_id', clinicId)
             .single();
@@ -187,8 +187,10 @@ export const confirmDelivery = async (req: AuthRequest, res: Response): Promise<
             return;
         }
 
-        if (order.order_code !== deliveryCode) {
-            res.status(400).json({ success: false, message: 'Invalid delivery code. Check your receipt.' });
+        // Verify code (can be delivery_otp or order_code for fallback)
+        const validCode = order.delivery_otp || order.order_code;
+        if (deliveryCode !== validCode) {
+            res.status(400).json({ success: false, message: 'Invalid delivery code. Check your app or receipt.' });
             return;
         }
 

@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'api_service.dart';
 
 class PharmOrdersScreen extends StatefulWidget {
-  const PharmOrdersScreen({super.key});
+  final String? initialFilter;
+  const PharmOrdersScreen({super.key, this.initialFilter});
 
   @override
   State<PharmOrdersScreen> createState() => _PharmOrdersScreenState();
@@ -13,13 +14,7 @@ class _PharmOrdersScreenState extends State<PharmOrdersScreen> {
   List<dynamic> _orders = [];
   bool _loading = true;
   bool _actionLoading = false;
-  String _filter = 'All';
-
-  static const _primary = Color(0xFF1B5E20);
-  static const _green = Color(0xFF2E7D32);
-  static const _orange = Color(0xFFE65100);
-  static const _blue = Color(0xFF0D47A1);
-  static const _red = Color(0xFFC62828);
+  late String _filter;
 
   final _filters = ['All', 'PAID', 'ACCEPTED', 'PARTIAL', 'READY_FOR_PICKUP', 'REJECTED'];
   final _filterLabels = {
@@ -33,7 +28,16 @@ class _PharmOrdersScreenState extends State<PharmOrdersScreen> {
   @override
   void initState() {
     super.initState();
+    _filter = widget.initialFilter ?? 'All';
     _loadOrders();
+  }
+  
+  @override
+  void didUpdateWidget(covariant PharmOrdersScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialFilter != oldWidget.initialFilter && widget.initialFilter != null) {
+      setState(() => _filter = widget.initialFilter!);
+    }
   }
 
   Future<void> _loadOrders() async {
@@ -42,18 +46,15 @@ class _PharmOrdersScreenState extends State<PharmOrdersScreen> {
       final res = await ApiService.getInboxOrders();
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        setState(() { _orders = data['orders'] ?? data['data'] ?? []; _loading = false; });
+        setState(() { 
+          _orders = data['orders'] ?? data['data'] ?? []; 
+          _loading = false; 
+        });
       } else {
-        debugPrint('[PharmOrders] API error ${res.statusCode}: ${res.body}');
         setState(() { _orders = []; _loading = false; });
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load orders (${res.statusCode})'), backgroundColor: _red));
       }
     } catch (e) {
-      debugPrint('[PharmOrders] Exception: $e');
       setState(() { _orders = []; _loading = false; });
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Network error loading orders'), backgroundColor: Colors.grey));
     }
   }
 
@@ -61,7 +62,6 @@ class _PharmOrdersScreenState extends State<PharmOrdersScreen> {
     if (val == null) return 'UGX 0';
     try {
       double d = double.parse(val.toString());
-      if (d == 0) return 'UGX 0';
       String s = d.toStringAsFixed(0);
       RegExp reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
       s = s.replaceAllMapped(reg, (Match m) => '${m[1]},');
@@ -75,115 +75,176 @@ class _PharmOrdersScreenState extends State<PharmOrdersScreen> {
 
   Color _statusColor(String s) {
     switch (s) {
-      case 'PAID': return _orange;
-      case 'ACCEPTED': return _green;
-      case 'PARTIAL': return _blue;
-      case 'READY_FOR_PICKUP': return _primary;
-      case 'REJECTED': return _red;
+      case 'PAID': return Colors.orange;
+      case 'ACCEPTED': return Colors.blue;
+      case 'READY_FOR_PICKUP': return const Color(0xFF1B5E20);
+      case 'REJECTED': return Colors.red;
       default: return Colors.grey;
     }
   }
 
-  String _statusLabel(String s) => _filterLabels[s] ?? s;
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+
+    return Column(
+      children: [
+        // Filter Strip
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _filters.map((f) {
+                final isActive = f == _filter;
+                return GestureDetector(
+                  onTap: () => setState(() => _filter = f),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isActive ? primary : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      f == 'All' ? 'All Orders' : (_filterLabels[f] ?? f),
+                      style: TextStyle(
+                        color: isActive ? Colors.white : Colors.grey.shade600,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+
+        // Orders List
+        Expanded(
+          child: _loading
+              ? Center(child: CircularProgressIndicator(color: primary))
+              : RefreshIndicator(
+                  onRefresh: _loadOrders,
+                  color: primary,
+                  child: _filtered.isEmpty
+                      ? ListView(
+                          children: [
+                            const SizedBox(height: 100),
+                            Center(
+                              child: Column(
+                                children: [
+                                  Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade300),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No orders found for this category',
+                                    style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.w500),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _filtered.length,
+                          itemBuilder: (ctx, i) {
+                            final o = _filtered[i];
+                            return _OrderCard(
+                              order: o,
+                              statusColor: _statusColor(o['status']),
+                              statusLabel: _filterLabels[o['status']] ?? o['status'],
+                              onRespond: () => _showRespondSheet(context, o),
+                              onMarkReady: () => _markReady(context, o['id']),
+                              actionLoading: _actionLoading,
+                            );
+                          },
+                        ),
+                ),
+        ),
+      ],
+    );
+  }
 
   void _showRespondSheet(BuildContext context, Map<String, dynamic> order) {
     if (order['status'] != 'PAID') return;
     final rejectCtrl = TextEditingController();
-    String? _action;
+    String? action;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Padding(
+        builder: (ctx, setSheetState) => Container(
           padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(28),
             decoration: const BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16, left: 130),
-                    decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(4))),
-                Text('Respond to ${order['display_id'] ?? order['id']}',
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                Text('From: ${order['clinic'] ?? "Clinic"}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                Center(
+                  child: Container(
+                    width: 40, height: 4, 
+                    margin: const EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(4)),
+                  ),
+                ),
+                Text('Order Response', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                // Items summary
-                ...((order['items'] as List? ?? []).map((item) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Row(children: [
-                        const Icon(Icons.medication_rounded, size: 14, color: _primary),
-                        const SizedBox(width: 6),
-                        Text('${item['drug_name']} × ${item['quantity']}',
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                      ]),
-                    ))),
-                const SizedBox(height: 20),
-                Row(children: [
-                  _ResponseBtn('Accept', _green, Icons.check_circle_rounded, _action == 'ACCEPTED',
-                      () => setSheetState(() => _action = 'ACCEPTED')),
-                  const SizedBox(width: 8),
-                  _ResponseBtn('Partial', _blue, Icons.remove_circle_rounded, _action == 'PARTIAL',
-                      () => setSheetState(() => _action = 'PARTIAL')),
-                  const SizedBox(width: 8),
-                  _ResponseBtn('Reject', _red, Icons.cancel_rounded, _action == 'REJECTED',
-                      () => setSheetState(() => _action = 'REJECTED')),
-                ]),
-                if (_action == 'REJECTED') ...[
-                  const SizedBox(height: 14),
+                Text('Managing ${(order['display_id'] ?? order['id']).toString().toUpperCase()}', 
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                const SizedBox(height: 24),
+
+                Row(
+                  children: [
+                    _ActionBtn(label: 'Accept', color: const Color(0xFF2E7D32), icon: Icons.check_circle_rounded, 
+                      selected: action == 'ACCEPTED', onTap: () => setSheetState(() => action = 'ACCEPTED')),
+                    const SizedBox(width: 12),
+                    _ActionBtn(label: 'Partial', color: Colors.blue, icon: Icons.remove_circle_rounded, 
+                      selected: action == 'PARTIAL', onTap: () => setSheetState(() => action = 'PARTIAL')),
+                    const SizedBox(width: 12),
+                    _ActionBtn(label: 'Reject', color: Colors.red, icon: Icons.cancel_rounded, 
+                      selected: action == 'REJECTED', onTap: () => setSheetState(() => action = 'REJECTED')),
+                  ],
+                ),
+
+                if (action == 'REJECTED') ...[
+                  const SizedBox(height: 24),
                   TextField(
                     controller: rejectCtrl,
                     decoration: InputDecoration(
-                      labelText: 'Reason for rejection',
-                      prefixIcon: const Icon(Icons.info_outline, color: _red),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      labelText: 'Rejection Reason',
+                      prefixIcon: const Icon(Icons.info_outline),
                     ),
                   ),
                 ],
-                const SizedBox(height: 20),
+
+                const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,
-                  height: 50,
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _action == null ? Colors.grey.shade300 : (_action == 'REJECTED' ? _red : _green),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    onPressed: _action == null ? null : () async {
+                    onPressed: action == null ? null : () async {
                       Navigator.pop(ctx);
                       final res = await ApiService.respondToOrder(
                         order['id'],
-                        _action!,
-                        rejectedReason: _action == 'REJECTED' ? rejectCtrl.text : null,
+                        action!,
+                        rejectedReason: action == 'REJECTED' ? rejectCtrl.text : null,
                       );
                       _loadOrders();
-                      if (context.mounted) {
-                        final body = jsonDecode(res.body);
-                        final ok = res.statusCode == 200;
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(ok
-                              ? '${_statusLabel(_action!)} · Order Code: ${body['order_code'] ?? '-'}'
-                              : body['message'] ?? 'Error'),
-                          backgroundColor: ok ? _green : _red,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ));
-                      }
                     },
-                    child: Text(
-                      _action == null ? 'Select an action above' : 'Confirm — $_action',
-                      style: TextStyle(color: _action == null ? Colors.grey : Colors.white, fontWeight: FontWeight.bold),
-                    ),
+                    child: Text('Confirm Application', style: const TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
               ],
             ),
           ),
@@ -196,229 +257,157 @@ class _PharmOrdersScreenState extends State<PharmOrdersScreen> {
     setState(() => _actionLoading = true);
     try {
       final res = await ApiService.markOrderReady(orderId);
-      final body = jsonDecode(res.body);
-      final ok = res.statusCode == 200;
-      
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(ok ? 'Order marked ready! Driver assignment started.' : body['message'] ?? 'Error'),
-        backgroundColor: ok ? _green : _red,
-      ));
-      
-      if (ok) _loadOrders();
-    } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Network error', style: TextStyle(color: Colors.white)), backgroundColor: _red));
+      if (res.statusCode == 200) _loadOrders();
     } finally {
       setState(() => _actionLoading = false);
     }
   }
+}
+
+class _OrderCard extends StatelessWidget {
+  final Map<String, dynamic> order;
+  final Color statusColor;
+  final String statusLabel;
+  final VoidCallback onRespond, onMarkReady;
+  final bool actionLoading;
+
+  const _OrderCard({
+    required this.order,
+    required this.statusColor,
+    required this.statusLabel,
+    required this.onRespond,
+    required this.onMarkReady,
+    required this.actionLoading,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Filter strip
-        Container(
-          color: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(children: _filters.map((f) {
-              final isActive = f == _filter;
-              return GestureDetector(
-                onTap: () => setState(() => _filter = f),
-                child: Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: isActive ? _primary : Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(20),
+    final primary = Color(0xFF1B5E20);
+    final status = order['status'] as String;
+    final items = order['items'] as List? ?? [];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '#${(order['display_id'] ?? order['id']).toString().toUpperCase()}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                      child: Text(
+                        statusLabel,
+                        style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 11),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Icon(Icons.local_hospital_rounded, size: 14, color: Colors.grey),
+                    const SizedBox(width: 6),
+                    Text(order['clinic'] ?? 'Partner Clinic', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ...items.map((i) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      Icon(Icons.medication_rounded, size: 14, color: primary),
+                      const SizedBox(width: 8),
+                      Text('${i['drug_name']} × ${i['quantity']}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                    ],
                   ),
-                  child: Text(f == 'All' ? 'All' : (_filterLabels[f] ?? f),
-                      style: TextStyle(
-                        color: isActive ? Colors.white : Colors.grey.shade600,
-                        fontWeight: FontWeight.w600, fontSize: 12,
-                      )),
-                ),
-              );
-            }).toList()),
-          ),
-        ),
-
-        // List
-        Expanded(
-          child: _loading
-              ? const Center(child: CircularProgressIndicator(color: _primary))
-              : RefreshIndicator(
-                  color: _primary,
-                  onRefresh: _loadOrders,
-                  child: _filtered.isEmpty
-                      ? ListView(children: const [SizedBox(height: 80),
-                          Center(child: Column(children: [
-                            Icon(Icons.inbox_outlined, size: 56, color: Colors.grey),
-                            SizedBox(height: 12),
-                            Text('No orders here', style: TextStyle(color: Colors.grey, fontSize: 15)),
-                          ]))])
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(14),
-                          itemCount: _filtered.length,
-                          itemBuilder: (ctx, i) {
-                            final o = _filtered[i] as Map<String, dynamic>;
-                            final status = o['status'] as String? ?? 'PENDING';
-                            final color = _statusColor(status);
-                            
-                            String rawId = o['display_id'] ?? o['id']?.toString() ?? '${i + 1}';
-                            String shortId = rawId.contains('-') ? rawId.split('-').first.toUpperCase() : rawId.toUpperCase();
-                            final id = 'Order #$shortId';
-                            
-                            final items = o['items'] as List? ?? [];
-
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 14),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                border: status == 'PAID' ? Border.all(color: _orange.withOpacity(0.4), width: 1.5) : null,
-                                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                                    Row(children: [
-                                      Text(id, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                                      if (o['urgent'] == true) ...[
-                                        const SizedBox(width: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                          decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(6)),
-                                          child: const Text('URGENT', style: TextStyle(color: Colors.red, fontSize: 9, fontWeight: FontWeight.bold)),
-                                        ),
-                                      ],
-                                    ]),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                                      child: Text(_statusLabel(status), style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 11)),
-                                    ),
-                                  ]),
-                                  const SizedBox(height: 8),
-                                  // From
-                                  Row(children: [
-                                    const Icon(Icons.local_hospital_outlined, size: 13, color: Colors.grey),
-                                    const SizedBox(width: 4),
-                                    Text(o['clinic'] ?? 'Clinic', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                                  ]),
-                                  const SizedBox(height: 8),
-                                  // Drug items
-                                  ...items.map((item) => Padding(
-                                        padding: const EdgeInsets.only(bottom: 3),
-                                        child: Row(children: [
-                                          const Icon(Icons.medication_rounded, size: 14, color: _primary),
-                                          const SizedBox(width: 6),
-                                          Text('${item['drug_name']} × ${item['quantity']}',
-                                              style: const TextStyle(fontSize: 13)),
-                                        ]),
-                                      )),
-                                  const SizedBox(height: 6),
-                                  Text(o['created_at'] != null ? o['created_at'].toString().split('T').first : '', style: const TextStyle(color: Colors.grey, fontSize: 11)),
-
-                                  const Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 12),
-                                    child: Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
-                                  ),
-                                  
-                                  // Money Breakdown
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                        const Text('Order Value', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                                        Text(_formatCurrency(o['subtotal'] ?? 0), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
-                                      ]),
-                                      Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
-                                        const Text('Commission', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                                        Text('- ' + _formatCurrency(o['pharmacy_commission'] ?? 0), style: const TextStyle(color: _red, fontWeight: FontWeight.w600, fontSize: 12)),
-                                      ]),
-                                      Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                                        const Text('Pharmacy Earnings', style: TextStyle(color: _primary, fontSize: 11, fontWeight: FontWeight.bold)),
-                                        Text(_formatCurrency(o['pharmacy_net'] ?? 0), style: const TextStyle(color: _primary, fontWeight: FontWeight.w800, fontSize: 14)),
-                                      ]),
-                                    ],
-                                  ),
-
-                                  // Order code if available
-                                  if (o['order_code'] != null) ...[
-                                    const SizedBox(height: 10),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      decoration: BoxDecoration(color: _primary.withOpacity(0.08), borderRadius: BorderRadius.circular(10)),
-                                      child: Row(children: [
-                                        const Icon(Icons.qr_code_rounded, color: _primary, size: 16),
-                                        const SizedBox(width: 8),
-                                        Text('Order Code: ', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                                        Text(o['order_code'], style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _primary, letterSpacing: 2)),
-                                      ]),
-                                    ),
-                                  ],
-
-                                  // Action button for PAID
-                                  if (status == 'PAID') ...[
-                                    const SizedBox(height: 12),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: ElevatedButton.icon(
-                                        icon: const Icon(Icons.touch_app_rounded, size: 16, color: Colors.white),
-                                        label: const Text('Respond to Order', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: _orange,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                          elevation: 0,
-                                          padding: const EdgeInsets.symmetric(vertical: 10),
-                                        ),
-                                        onPressed: () => _showRespondSheet(context, o),
-                                      ),
-                                    ),
-                                  ],
-
-                                  // Action button for ACCEPTED / PARTIAL
-                                  if ((status == 'ACCEPTED' || status == 'PARTIAL') && o['order_code'] != null) ...[
-                                    const SizedBox(height: 12),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: ElevatedButton.icon(
-                                        icon: _actionLoading 
-                                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                            : const Icon(Icons.check_box_rounded, size: 16, color: Colors.white),
-                                        label: Text(_actionLoading ? 'Processing...' : 'Mark Ready for Pickup', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: _green,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                          elevation: 0,
-                                          padding: const EdgeInsets.symmetric(vertical: 10),
-                                        ),
-                                        onPressed: _actionLoading ? null : () => _markReady(context, o['id']),
-                                      ),
-                                    ),
-                                  ],
-                                ]),
-                              ),
-                            );
-                          },
+                )),
+                const SizedBox(height: 16),
+                const Divider(height: 1),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Net Earnings', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                        const SizedBox(height: 2),
+                        Text(
+                          _formatCurrency(order['pharmacy_net'] ?? 0),
+                          style: TextStyle(color: primary, fontWeight: FontWeight.bold, fontSize: 16),
                         ),
+                      ],
+                    ),
+                    if (order['order_code'] != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(color: primary.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                        child: Text(
+                          order['order_code'],
+                          style: TextStyle(color: primary, fontWeight: FontWeight.black, fontSize: 16, letterSpacing: 2),
+                        ),
+                      ),
+                  ],
                 ),
-        ),
-      ],
+              ],
+            ),
+          ),
+          if (status == 'PAID' || (status == 'ACCEPTED' && order['order_code'] != null))
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: ElevatedButton(
+                onPressed: status == 'PAID' ? onRespond : (actionLoading ? null : onMarkReady),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: status == 'PAID' ? Colors.orange : primary,
+                ),
+                child: Text(
+                  status == 'PAID' ? 'Review & Respond' : (actionLoading ? 'Updating...' : 'Ready for Dispatch'),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
+  }
+
+  String _formatCurrency(dynamic val) {
+    if (val == null) return 'UGX 0';
+    try {
+      double d = double.parse(val.toString());
+      String s = d.toStringAsFixed(0);
+      RegExp reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
+      s = s.replaceAllMapped(reg, (Match m) => '${m[1]},');
+      return 'UGX $s';
+    } catch (_) {
+      return 'UGX $val';
+    }
   }
 }
 
-class _ResponseBtn extends StatelessWidget {
+class _ActionBtn extends StatelessWidget {
   final String label;
   final Color color;
   final IconData icon;
   final bool selected;
   final VoidCallback onTap;
-  const _ResponseBtn(this.label, this.color, this.icon, this.selected, this.onTap);
+  const _ActionBtn({required this.label, required this.color, required this.icon, required this.selected, required this.onTap});
   @override
   Widget build(BuildContext context) {
     return Expanded(
@@ -426,17 +415,22 @@ class _ResponseBtn extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            color: selected ? color : color.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(12),
+            color: selected ? color : color.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: color, width: selected ? 0 : 1),
           ),
-          child: Column(children: [
-            Icon(icon, color: selected ? Colors.white : color, size: 22),
-            const SizedBox(height: 4),
-            Text(label, style: TextStyle(color: selected ? Colors.white : color, fontWeight: FontWeight.bold, fontSize: 11)),
-          ]),
+          child: Column(
+            children: [
+              Icon(icon, color: selected ? Colors.white : color, size: 24),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: TextStyle(color: selected ? Colors.white : color, fontWeight: FontWeight.bold, fontSize: 12),
+              ),
+            ],
+          ),
         ),
       ),
     );

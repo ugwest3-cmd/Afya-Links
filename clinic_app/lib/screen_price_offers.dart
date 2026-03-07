@@ -65,17 +65,26 @@ class _PriceOffersScreenState extends State<PriceOffersScreen> {
       final res = await ApiService.getPriceOffers(drugNames: drugNames, pharmacyIds: widget.pharmacyIds);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        setState(() {
-          _offersByPharmacy = Map<String, List<Map<String, dynamic>>>.from(
-            (data['data'] as Map).map((k, v) => MapEntry(k, List<Map<String, dynamic>>.from(v))),
-          );
-          _loading = false;
-        });
+        final rawData = data['data'];
+        if (rawData is Map) {
+          setState(() {
+            _offersByPharmacy = rawData.map((k, v) {
+              if (v is List) {
+                return MapEntry(k.toString(), List<Map<String, dynamic>>.from(v));
+              }
+              return MapEntry(k.toString(), <Map<String, dynamic>>[]);
+            });
+            _loading = false;
+          });
+        } else {
+          setState(() { _offersByPharmacy = _mockOffers; _loading = false; });
+        }
       } else {
         // Mock offers for demo
         setState(() { _offersByPharmacy = _mockOffers; _loading = false; });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Error fetching offers: $e');
       setState(() { _offersByPharmacy = _mockOffers; _loading = false; });
     }
   }
@@ -83,14 +92,17 @@ class _PriceOffersScreenState extends State<PriceOffersScreen> {
   Map<String, List<Map<String, dynamic>>> get _mockOffers {
     final result = <String, List<Map<String, dynamic>>>{};
     for (final id in widget.pharmacyIds) {
-      final pharmacy = widget.pharmacies.firstWhere((p) => p['id'] == id, orElse: () => {'name': 'Pharmacy'});
+      final pharmacy = widget.pharmacies.firstWhere(
+        (p) => p['id'] == id, 
+        orElse: () => {'name': 'Pharmacy', 'id': id}
+      );
       result[id] = widget.drugs.map((d) => {
         'drug_name': d['drug_name'],
         'price': (id.contains('002') ? 4800.0 : 5500.0),
         'stock_qty': id.contains('002') ? 120 : 45,
         'brand': 'Generic',
         'strength': '',
-        'pharmacy_name': pharmacy['name'],
+        'pharmacy_name': pharmacy['name'] ?? 'Pharmacy',
       }).toList();
     }
     return result;
@@ -101,7 +113,8 @@ class _PriceOffersScreenState extends State<PriceOffersScreen> {
     double total = 0;
     for (int i = 0; i < items.length; i++) {
       final qty = i < widget.drugs.length ? (widget.drugs[i]['quantity'] as int? ?? 1) : 1;
-      total += (items[i]['price'] as num).toDouble() * qty;
+      final price = (items[i]['price'] as num?)?.toDouble() ?? 0.0;
+      total += price * qty;
     }
     return total;
   }
@@ -395,7 +408,7 @@ class _PriceOffersScreenState extends State<PriceOffersScreen> {
                                     children: offers.asMap().entries.map((e) {
                                       final offer = e.value;
                                       final qty = e.key < widget.drugs.length ? (widget.drugs[e.key]['quantity'] as int? ?? 1) : 1;
-                                      final price = (offer['price'] as num).toDouble();
+                                      final price = (offer['price'] as num?)?.toDouble() ?? 0.0;
                                       final stockQty = offer['stock_qty'] as int?;
                                       final inStock = stockQty == null || stockQty > 0;
                                       return Padding(

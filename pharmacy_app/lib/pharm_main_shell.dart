@@ -6,7 +6,6 @@ import 'pharm_screen_pricelist.dart';
 import 'pharm_screen_profile.dart';
 import 'pharm_screen_notifications.dart';
 import 'pharm_screen_payouts.dart';
-import 'pharm_screen_notifications.dart';
 
 class PharmMainShell extends StatefulWidget {
   final String pharmacyName;
@@ -19,6 +18,7 @@ class PharmMainShell extends StatefulWidget {
 class _PharmMainShellState extends State<PharmMainShell> {
   int _currentIndex = 0;
   int _notificationCount = 2;
+  String? _activeFilter;
 
   final _pageTitles = ['Dashboard', 'Orders', 'Price List', 'Wallet', 'Profile'];
   final _icons = [
@@ -36,18 +36,11 @@ class _PharmMainShellState extends State<PharmMainShell> {
     Icons.person_rounded,
   ];
 
-  late final List<Widget> _pages;
-  
-  @override
-  void initState() {
-    super.initState();
-    _pages = [
-      PharmDashboardScreen(pharmacyName: widget.pharmacyName, onViewOrders: () => setState(() => _currentIndex = 1)),
-      const PharmOrdersScreen(),
-      const PharmPriceListScreen(),
-      const PharmPayoutsScreen(),
-      PharmProfileScreen(pharmacyName: widget.pharmacyName),
-    ];
+  void _onDashboardViewOrders(String? filter) {
+    setState(() {
+      _activeFilter = filter;
+      _currentIndex = 1;
+    });
   }
 
   void _openNotifications() {
@@ -67,7 +60,15 @@ class _PharmMainShellState extends State<PharmMainShell> {
       statusBarIconBrightness: Brightness.light,
     ));
 
-    const primary = Color(0xFF1B5E20); // deep green
+    const primary = Color(0xFF1B5E20);
+
+    final List<Widget> pages = [
+      PharmDashboardScreen(pharmacyName: widget.pharmacyName, onViewOrders: _onDashboardViewOrders),
+      PharmOrdersScreen(initialFilter: _activeFilter),
+      const PharmPriceListScreen(),
+      const PharmPayoutsScreen(),
+      PharmProfileScreen(pharmacyName: widget.pharmacyName),
+    ];
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1F8F1),
@@ -115,14 +116,13 @@ class _PharmMainShellState extends State<PharmMainShell> {
           ),
         ],
       ),
-      body: IndexedStack(index: _currentIndex, children: _pages),
+      body: IndexedStack(index: _currentIndex, children: pages),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 16, offset: const Offset(0, -2))],
         ),
         child: SafeArea(
-          top: false,
           child: SizedBox(
             height: 60,
             child: Row(
@@ -135,7 +135,6 @@ class _PharmMainShellState extends State<PharmMainShell> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Badge on orders tab
                         i == 1 && _notificationCount > 0
                             ? Stack(alignment: Alignment.center, clipBehavior: Clip.none, children: [
                                 Icon(isActive ? _activeIcons[i] : _icons[i],

@@ -392,91 +392,113 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    const primary = Color(0xFF0D47A1);
+    const secondary = Color(0xFF1976D2);
+    
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          // Avatar
+          // Avatar Header
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              gradient: const LinearGradient(colors: [Color(0xFF0D6EFD), Color(0xFF6B9FFF)]),
+              gradient: LinearGradient(colors: [primary, secondary]),
             ),
-            child: const CircleAvatar(
-              radius: 44,
+            child: CircleAvatar(
+              radius: 50,
               backgroundColor: Colors.white,
-              child: Icon(Icons.local_hospital, size: 46, color: Color(0xFF0D6EFD)),
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: primary.withOpacity(0.05),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: const Icon(Icons.local_hospital_rounded, size: 50, color: primary),
+              ),
             ),
           ),
+          const SizedBox(height: 16),
+          Text(widget.clinicName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: primary)),
+          const SizedBox(height: 4),
+          const Text('Verified Clinic Partner', style: TextStyle(color: Colors.blueGrey, fontSize: 13, fontWeight: FontWeight.w500)),
           const SizedBox(height: 12),
-          Text(widget.clinicName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const Text('Verified Clinic Partner', style: TextStyle(color: Colors.grey, fontSize: 13)),
-          const SizedBox(height: 6),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: const Color(0xFF26C87C).withOpacity(0.12),
+              color: const Color(0xFF26C87C).withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFF26C87C).withOpacity(0.2)),
             ),
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.verified, color: Color(0xFF26C87C), size: 14),
-                SizedBox(width: 4),
-                Text('Active', style: TextStyle(color: Color(0xFF26C87C), fontSize: 12, fontWeight: FontWeight.bold)),
+                Icon(Icons.verified_rounded, color: Color(0xFF26C87C), size: 16),
+                SizedBox(width: 6),
+                Text('ACTIVE ACCOUNT', style: TextStyle(color: Color(0xFF26C87C), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
               ],
             ),
           ),
-          const SizedBox(height: 28),
-
-          const SizedBox(height: 28),
+          const SizedBox(height: 32),
 
           if (_isLoading)
-            const Center(child: CircularProgressIndicator())
+            const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()))
           else ...[
-            // Info tiles
-            _InfoTile(icon: Icons.phone, label: 'Phone', value: _profileData?['phone'] ?? 'N/A'),
-            _InfoTile(icon: Icons.location_on, label: 'Location', value: _profileData?['address'] ?? 'N/A'),
-            _InfoTile(icon: Icons.badge, label: 'License / ID', value: _profileData?['license_number'] ?? 'N/A'),
+            // Info Group
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text('CLINIC INFORMATION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+            ),
+            const SizedBox(height: 12),
+            _InfoTile(icon: Icons.phone_android_rounded, label: 'Phone', value: _profileData?['phone'] ?? 'N/A'),
+            _InfoTile(icon: Icons.location_on_rounded, label: 'Location', value: _profileData?['address'] ?? 'N/A'),
+            _InfoTile(icon: Icons.badge_rounded, label: 'License / ID', value: _profileData?['license_number'] ?? 'N/A'),
             
-            // Show selected supply towns
             if (_profileData?['preferred_supply_towns'] != null && (_profileData!['preferred_supply_towns'] as List).isNotEmpty)
               _InfoTile(
-                icon: Icons.local_shipping, 
-                label: 'Preferred Supply Hubs', 
+                icon: Icons.local_shipping_rounded, 
+                label: 'Supply Hubs', 
                 value: (_profileData!['preferred_supply_towns'] as List).join(', ')
               )
             else
-              const _InfoTile(icon: Icons.local_shipping, label: 'Preferred Supply Hubs', value: 'None Selected (Show All)'),
+              const _InfoTile(icon: Icons.local_shipping_rounded, label: 'Supply Hubs', value: 'None Selected (Show All)'),
           ],
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text('SETTINGS & SUPPORT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+          ),
+          const SizedBox(height: 12),
 
           // Settings
-          _SettingsTile(icon: Icons.upload_file, label: 'Upload Verification Docs', onTap: _uploadDoc),
-          _SettingsTile(icon: Icons.edit_location_alt_outlined, label: 'Update Clinic Location', onTap: _showUpdateLocationDialog),
-          _SettingsTile(icon: Icons.map, label: 'Select Preferred Supply Hubs', onTap: _showUpdateSupplyTownsDialog),
-          _SettingsTile(icon: Icons.notifications_outlined, label: 'Notification Preferences', onTap: _showNotificationSettings),
-          _SettingsTile(icon: Icons.help_outline, label: 'Help & Support', onTap: _launchSupportEmail),
+          _SettingsTile(icon: Icons.cloud_upload_rounded, label: 'Verification Documents', onTap: _uploadDoc),
+          _SettingsTile(icon: Icons.edit_location_alt_rounded, label: 'Update Clinic Location', onTap: _showUpdateLocationDialog),
+          _SettingsTile(icon: Icons.map_rounded, label: 'Manage Supply Hubs', onTap: _showUpdateSupplyTownsDialog),
+          _SettingsTile(icon: Icons.notifications_active_rounded, label: 'Notification Preferences', onTap: _showNotificationSettings),
+          _SettingsTile(icon: Icons.headset_mic_rounded, label: 'Help & Support', onTap: _launchSupportEmail),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 32),
 
           // Logout
           SizedBox(
             width: double.infinity,
-            child: OutlinedButton.icon(
+            child: TextButton.icon(
               onPressed: () => _logout(context),
-              icon: const Icon(Icons.logout, color: Colors.red),
-              label: const Text('Sign Out', style: TextStyle(color: Colors.red)),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.red),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              icon: const Icon(Icons.logout_rounded, color: Colors.red, size: 20),
+              label: const Text('Sign Out', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: Colors.red.withOpacity(0.05),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
             ),
           ),
+          const SizedBox(height: 12),
+          const Text('AfyaLinks v2.1.0', style: TextStyle(color: Colors.grey, fontSize: 11)),
+          const SizedBox(height: 24),
         ],
       ),
     );

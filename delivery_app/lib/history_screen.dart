@@ -27,10 +27,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       if (res.statusCode == 200) {
         final allDeliveries = jsonDecode(res.body)['deliveries'] as List;
         setState(() {
-          // Filter to only delivered or cancelled
           _deliveries = allDeliveries.where((d) {
-             final status = d['order']?['status'] ?? d['status'];
-             return status == 'DELIVERED' || status == 'CANCELLED';
+             final s = d['order']?['status'] ?? d['status'];
+             return s == 'DELIVERED' || s == 'CANCELLED';
           }).toList();
         });
       }
@@ -43,24 +42,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    const primaryIndigo = Color(0xFF312E81);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
-      appBar: AppBar(
-        title: const Text('Delivery History'),
-        backgroundColor: const Color(0xFF1E40AF),
-        foregroundColor: Colors.white,
-      ),
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(title: const Text('JOB ARCHIVE')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _loadHistory,
+              color: primaryIndigo,
               child: _deliveries.isEmpty
                   ? _buildEmptyState()
                   : ListView.builder(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(24),
                       itemCount: _deliveries.length,
                       itemBuilder: (context, index) {
-                        return _buildHistoryCard(_deliveries[index]);
+                        return _buildHistoryTicket(_deliveries[index], primaryIndigo);
                       },
                     ),
             ),
@@ -72,104 +70,91 @@ class _HistoryScreenState extends State<HistoryScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.receipt_long_rounded, size: 60, color: const Color(0xFF9CA3AF).withOpacity(0.5)),
+          Icon(Icons.auto_stories_rounded, size: 60, color: const Color(0xFFE2E8F0)),
           const SizedBox(height: 16),
-          const Text('No completed deliveries yet', style: TextStyle(color: Color(0xFF6B7280), fontSize: 16)),
+          const Text('No completed jobs in your history', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13, fontWeight: FontWeight.w500)),
         ],
       ),
     );
   }
 
-  Widget _buildHistoryCard(dynamic delivery) {
+  Widget _buildHistoryTicket(dynamic delivery, Color indigo) {
     final order = delivery['order'];
     if (order == null) return const SizedBox.shrink();
 
     final status = order['status'] ?? 'UNKNOWN';
     final isDelivered = status == 'DELIVERED';
-    
-    final pharmacyName = order['pharmacy']?['name'] ?? order['pharmacy']?['business_name'] ?? 'Pharmacy';
-    final clinicName = order['clinic']?['name'] ?? order['clinic']?['business_name'] ?? 'Clinic';
+    final pharmacy = order['pharmacy']?['name'] ?? 'Pharmacy Pool';
+    final clinic = order['clinic']?['name'] ?? 'Clinic Delivery';
     final fee = delivery['driver_fee_collected'] ?? 0;
+    final id = order['order_code'] ?? 'ORD-#';
     
-    // Format Date
-    String dateStr = '';
-    if (delivery['dropoff_time'] != null) {
-       try {
-         final d = DateTime.parse(delivery['dropoff_time']).toLocal();
-         dateStr = '${d.day}/${d.month}/${d.year}';
-       } catch (e) {}
-    }
+    DateTime date = delivery['dropoff_time'] != null ? DateTime.parse(delivery['dropoff_time']).toLocal() : DateTime.now();
+    String formattedDate = '${date.day}/${date.month}/${date.year}';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF1F5F9)),
       ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailScreen(orderId: order['id'])));
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(dateStr, style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13, fontWeight: FontWeight.w600)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: (isDelivered ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        isDelivered ? 'COMPLETED' : status,
-                        style: TextStyle(
-                          color: isDelivered ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    )
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Icon(Icons.storefront_rounded, size: 16, color: Color(0xFF6B7280)),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(pharmacyName, style: const TextStyle(fontWeight: FontWeight.w500, color: Color(0xFF111827)), maxLines: 1)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.medical_services_outlined, size: 16, color: Color(0xFF2563EB)),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(clinicName, style: const TextStyle(fontWeight: FontWeight.w500, color: Color(0xFF111827)), maxLines: 1)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Divider(height: 1, color: Color(0xFFF3F4F6)),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Earned', style: TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
-                    Text('UGX ${fee.toInt()}', style: const TextStyle(color: Color(0xFF10B981), fontSize: 15, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ],
-            ),
+      child: InkWell(
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailScreen(orderId: order['id']))),
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(formattedDate, style: const TextStyle(color: Color(0xFF475569), fontWeight: FontWeight.w800, fontSize: 13)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (isDelivered ? const Color(0xFF059669) : Colors.red.shade700).withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      isDelivered ? 'SUCCESS' : status,
+                      style: TextStyle(color: isDelivered ? const Color(0xFF059669) : Colors.red.shade700, fontSize: 10, fontWeight: FontWeight.w900),
+                    ),
+                  )
+                ],
+              ),
+              const Divider(height: 28, thickness: 0.5, color: Color(0xFFF1F5F9)),
+              Row(
+                children: [
+                  Column(
+                    children: [
+                      const Icon(Icons.storefront_rounded, size: 16, color: Color(0xFF94A3B8)),
+                      Container(width: 1, height: 12, margin: const EdgeInsets.symmetric(vertical: 4), color: const Color(0xFFE2E8F0)),
+                      const Icon(Icons.location_on_rounded, size: 16, color: Color(0xFF312E81)),
+                    ],
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(pharmacy, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF1E293B)), maxLines: 1),
+                        const SizedBox(height: 14),
+                        Text(clinic, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF1E293B)), maxLines: 1),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const Text('EARNED', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                      Text('UGX $fee', style: const TextStyle(color: Color(0xFF059669), fontSize: 15, fontWeight: FontWeight.black)),
+                    ],
+                  )
+                ],
+              ),
+            ],
           ),
         ),
       ),

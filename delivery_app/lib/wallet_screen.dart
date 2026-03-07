@@ -31,20 +31,17 @@ class _WalletScreenState extends State<WalletScreen> {
           _walletBalance = (data['wallet_balance'] ?? 0).toDouble();
           _totalEarned = (data['total_earned'] ?? 0).toDouble();
           _payoutHistory = data['payouts'] ?? [];
+          _loading = false;
         });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to load wallet data')));
       }
     } catch (e) {
-      debugPrint('Error: $e');
-    } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _requestPayout() async {
     if (_walletBalance < 10000) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Minimum payout is UGX 10,000')));
+      _showInfo('Minimum withdrawal is UGX 10,000');
       return;
     }
 
@@ -52,168 +49,188 @@ class _WalletScreenState extends State<WalletScreen> {
     try {
       final res = await ApiService.requestPayout();
       if (res.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payout requested successfully')));
+        _showSuccess('Settlement request sent to Admin');
         _loadWallet();
       } else {
-        final msg = jsonDecode(res.body)['message'] ?? 'Failed to request payout';
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        _showError('Request failed. Try again later.');
       }
     } catch (e) {
-      debugPrint('Error: $e');
+      _showError('Network error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red.shade800, behavior: SnackBarBehavior.floating));
+  }
+  void _showSuccess(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: const Color(0xFF312E81), behavior: SnackBarBehavior.floating));
+  }
+  void _showInfo(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
+  }
+
   @override
   Widget build(BuildContext context) {
+    const primaryIndigo = Color(0xFF312E81);
+    const accentCyan = Color(0xFF0891B2);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
-      appBar: AppBar(
-        title: const Text('My Wallet'),
-        backgroundColor: const Color(0xFF1E40AF),
-        foregroundColor: Colors.white,
-      ),
-      body: _loading 
-        ? const Center(child: CircularProgressIndicator())
-        : RefreshIndicator(
-            onRefresh: _loadWallet,
-            child: ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                // Top Balances
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(color: const Color(0xFF1E40AF).withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))
-                    ]
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(title: const Text('WALLET & SETTLEMENTS')),
+      body: RefreshIndicator(
+        onRefresh: _loadWallet,
+        color: primaryIndigo,
+        child: ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            // Premium Balance Card
+            Container(
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [primaryIndigo, Color(0xFF4338CA)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [BoxShadow(color: primaryIndigo.withOpacity(0.2), blurRadius: 20, offset: const Offset(0, 10))],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Available Balance', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                      const SizedBox(height: 8),
-                      Text('UGX ${_walletBalance.toInt()}', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Total Earned', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                              Text('UGX ${_totalEarned.toInt()}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                          ElevatedButton(
-                            onPressed: _requestPayout,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: const Color(0xFF1E40AF),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            child: const Text('Withdraw', style: TextStyle(fontWeight: FontWeight.bold)),
-                          )
+                          Text('Available for Withdrawal', style: TextStyle(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1)),
+                          SizedBox(height: 4),
+                          Text('Personal Wallet', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                         ],
-                      )
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
+                        child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 20),
+                      ),
                     ],
                   ),
-                ),
-                
-                const SizedBox(height: 32),
-                
-                const Text('Payout History', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF111827))),
-                const SizedBox(height: 16),
-                
-                if (_payoutHistory.isEmpty)
-                  _buildEmptyHistory()
-                else
-                  ..._payoutHistory.map((p) => _buildPayoutCard(p)),
-              ],
+                  const SizedBox(height: 32),
+                  Text('UGX ${_walletBalance.toInt()}', style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900, letterSpacing: -1)),
+                  const SizedBox(height: 32),
+                  Row(
+                    children: [
+                      _buildMiniEarn('LIFETIME EARNINGS', 'UGX ${_totalEarned.toInt()}'),
+                      const Spacer(),
+                      ElevatedButton(
+                        onPressed: _loading ? null : _requestPayout,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: primaryIndigo,
+                          minimumSize: const Size(120, 48),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: const Text('WITHDRAW', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 1)),
+                      ),
+                    ],
+                  )
+                ],
+              ),
             ),
-          ),
+            
+            const SizedBox(height: 40),
+            
+            _buildHeader('TRANSACTION HISTORY'),
+            if (_loading && _payoutHistory.isEmpty)
+              const Center(child: Padding(padding: EdgeInsets.all(40.0), child: CircularProgressIndicator()))
+            else if (_payoutHistory.isEmpty)
+              _buildEmptyHistory()
+            else
+              ..._payoutHistory.map((p) => _buildPayoutCard(p, primaryIndigo)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniEarn(String label, String val) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.white60, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+        Text(val, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
+  Widget _buildHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16, left: 4),
+      child: Text(title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF94A3B8), letterSpacing: 1.2)),
     );
   }
 
   Widget _buildEmptyHistory() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 40),
-      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(vertical: 60),
       child: Column(
         children: [
-          Icon(Icons.history_rounded, size: 48, color: const Color(0xFF9CA3AF).withOpacity(0.5)),
+          Icon(Icons.history_rounded, size: 48, color: const Color(0xFFE2E8F0)),
           const SizedBox(height: 16),
-          const Text('No payout requests yet', style: TextStyle(color: Color(0xFF6B7280))),
+          const Text('No previous settlements found', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13, fontWeight: FontWeight.w500)),
         ],
       ),
     );
   }
 
-  Widget _buildPayoutCard(dynamic payout) {
-    Color statusColor;
-    IconData statusIcon;
-    switch (payout['status']) {
-      case 'PAID':
-        statusColor = const Color(0xFF10B981);
-        statusIcon = Icons.check_circle_rounded;
-        break;
-      case 'REJECTED':
-        statusColor = const Color(0xFFEF4444);
-        statusIcon = Icons.cancel_rounded;
-        break;
-      default:
-        statusColor = const Color(0xFFF59E0B);
-        statusIcon = Icons.pending_actions_rounded;
-    }
-
-    // Format date string safely
-    String dateStr = 'Unknown Date';
-    if (payout['created_at'] != null) {
-      try {
-        final d = DateTime.parse(payout['created_at']).toLocal();
-        dateStr = '${d.day}/${d.month}/${d.year}';
-      } catch (e) {}
-    }
+  Widget _buildPayoutCard(dynamic payout, Color indigo) {
+    String status = payout['status']?.toString().toUpperCase() ?? 'PENDING';
+    Color statusColor = status == 'PAID' ? const Color(0xFF059669) : (status == 'REJECTED' ? Colors.red.shade700 : const Color(0xFFD97706));
+    
+    DateTime date = payout['created_at'] != null ? DateTime.parse(payout['created_at']).toLocal() : DateTime.now();
+    String formattedDate = '${date.day} ${_getMonth(date.month)} ${date.year}';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF1F5F9)),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: statusColor.withOpacity(0.1), shape: BoxShape.circle),
-            child: Icon(statusIcon, color: statusColor, size: 24),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: statusColor.withOpacity(0.08), shape: BoxShape.circle),
+            child: Icon(status == 'PAID' ? Icons.check_rounded : Icons.schedule_rounded, color: statusColor, size: 20),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('UGX ${payout['amount'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF111827))),
-                const SizedBox(height: 4),
-                Text(dateStr, style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
+                Text('UGX ${payout['amount'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Color(0xFF1E293B))),
+                const SizedBox(height: 2),
+                Text(formattedDate, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
               ],
             ),
           ),
-          Text(
-            payout['status']?.toString() ?? 'PENDING',
-            style: TextStyle(fontWeight: FontWeight.bold, color: statusColor, fontSize: 13),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(color: statusColor.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
+            child: Text(status, style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
           ),
         ],
       ),
     );
+  }
+
+  String _getMonth(int m) {
+    const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return names[m - 1];
   }
 }

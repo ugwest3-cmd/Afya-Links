@@ -222,11 +222,17 @@ export const acceptDelivery = async (req: AuthRequest, res: Response): Promise<v
 export const confirmPickup = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { id } = req.params;
+        const { order_code } = req.body;
         const driverId = req.user?.id;
+
+        if (!order_code) {
+            res.status(400).json({ success: false, message: 'Pickup code (order code) is required' });
+            return;
+        }
 
         const { data: order, error: orderError } = await supabase
             .from('orders')
-            .select('id, driver_id, clinic_id, order_code, pickup_qr')
+            .select('id, driver_id, clinic_id, order_code')
             .eq('id', id)
             .single();
 
@@ -235,21 +241,32 @@ export const confirmPickup = async (req: AuthRequest, res: Response): Promise<vo
             return;
         }
 
-        // Removed QR Code check based on user request
+        // Verify order_code provided by pharmacist to driver
+        if (order.order_code !== order_code.trim().toUpperCase()) {
+            res.status(400).json({ success: false, message: 'Invalid pickup code' });
+            return;
+        }
+
+        // Generate a 6-digit delivery OTP for the clinic to give to the driver
+        const deliveryOtp = Math.floor(100000 + Math.random() * 900000).toString();
 
         // Update Order and Delivery
-        await supabase.from('orders').update({ status: 'IN_TRANSIT' }).eq('id', id);
+        await supabase.from('orders').update({
+            status: 'IN_TRANSIT',
+            delivery_otp: deliveryOtp
+        }).eq('id', id);
+
         await supabase.from('deliveries').update({ pickup_time: new Date().toISOString() }).eq('order_id', id).eq('driver_id', driverId);
 
-        // Notify Clinic
+        // Notify Clinic about pickup and provide OTP
         sendNotification({
             userId: order.clinic_id,
             title: '🚚 Order in Transit',
-            body: `Driver has picked up your order #${order.order_code} and is on the way.`,
+            body: `Driver has picked up your order and is on the way. Use Delivery Code: ${deliveryOtp} to confirm receipt.`,
             type: 'ORDER_IN_TRANSIT'
         });
 
-        res.status(200).json({ success: true, message: 'Pickup confirmed' });
+        res.status(200).json({ success: true, message: 'Pickup confirmed', delivery_otp: deliveryOtp });
     } catch (e: any) {
         res.status(500).json({ success: false, message: e.message });
     }
@@ -262,11 +279,17 @@ export const confirmPickup = async (req: AuthRequest, res: Response): Promise<vo
 export const confirmDelivery = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { id } = req.params;
+        const { otp } = req.body;
         const driverId = req.user?.id;
+
+        if (!otp) {
+            res.status(400).json({ success: false, message: 'Clinic delivery code is required' });
+            return;
+        }
 
         const { data: order, error: orderError } = await supabase
             .from('orders')
-            .select('id, driver_id, clinic_id, pharmacy_id, order_code, delivery_qr, delivery_fee, delivery_commission')
+            .select('id, driver_id, clinic_id, pharmacy_id, order_code, delivery_otp, delivery_fee, delivery_commission')
             .eq('id', id)
             .single();
 
@@ -275,13 +298,17 @@ export const confirmDelivery = async (req: AuthRequest, res: Response): Promise<
             return;
         }
 
-        // Removed QR Code check based on user request
+        // Verify OTP provided by clinic to driver
+        if (order.delivery_otp !== otp.trim()) {
+            res.status(400).json({ success: false, message: 'Invalid delivery code' });
+            return;
+        }
 
         // Driver Earnings = Delivery Fee - Platform Commission on the delivery fee
         const driverEarnings = (order.delivery_fee || 0) - (order.delivery_commission || 0);
 
         // Update Order and Delivery
-        await supabase.from('orders').update({ status: 'DELIVERED' }).eq('id', id);
+        await supabase.from('orders').update({ status: 'DELIVERED', delivered_at: new Date().toISOString() }).eq('id', id);
         await supabase.from('deliveries').update({
             dropoff_time: new Date().toISOString(),
             driver_fee_collected: driverEarnings
@@ -305,7 +332,7 @@ export const confirmDelivery = async (req: AuthRequest, res: Response): Promise<
         sendNotification({
             userId: order.clinic_id,
             title: '📦 Order Delivered',
-            body: `Your order #${order.order_code} has been delivered. Please confirm receipt in the app.`,
+            body: `Your order #${order.order_code} has been delivered. Thank you for using Afya Links!`,
             type: 'ORDER_DELIVERED'
         });
 
