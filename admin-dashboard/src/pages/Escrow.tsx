@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-    DollarSign, RefreshCw, Search, ShieldAlert,
-    CheckCircle2, Lock, TrendingUp, BarChart3,
+    DollarSign, RefreshCw, Search,
+    CheckCircle2, Lock, TrendingUp,
     PieChart as PieChartIcon, ArrowUpRight
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid,
-    Tooltip, ResponsiveContainer, LineChart, Line,
+    Tooltip, ResponsiveContainer,
     Cell, PieChart, Pie
 } from 'recharts';
 import api from '../utils/api';
@@ -20,6 +20,8 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+const FILTER_TABS = ['All', 'PAID', 'COMPLETED', 'DISPUTE', 'REFUNDED'];
 
 interface LedgerItem {
     id: string;
@@ -69,13 +71,13 @@ export const Escrow = () => {
     const revenueTrend = useMemo(() => {
         const daily = ledger
             .filter(o => o.status === 'COMPLETED')
-            .reduce((acc: any, o) => {
+            .reduce((acc: Record<string, number>, o) => {
                 const date = new Date(o.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                 acc[date] = (acc[date] || 0) + (Number(o.total_platform_revenue) || 0);
                 return acc;
             }, {});
 
-        return Object.entries(daily).map(([name, value]) => ({ name, revenue: value })).reverse();
+        return Object.entries(daily).map(([name, value]) => ({ name, revenue: value as number })).reverse();
     }, [ledger]);
 
     const partnerSplit = useMemo(() => {
@@ -213,13 +215,13 @@ export const Escrow = () => {
                 <div className="card">
                     <h3 className="text-h3" style={{ fontSize: '1.1rem', marginBottom: '1.25rem' }}>Pharmacy Performance Index</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        {performanceIndex.map((p: any, i) => (
+                        {performanceIndex.map((p, i) => (
                             <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                 <div style={{ width: 24, height: 24, borderRadius: '4px', background: 'var(--bg-surface-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800 }}>{i + 1}</div>
                                 <div style={{ flex: 1 }}>
                                     <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>{p.name}</div>
                                     <div style={{ height: '4px', width: '100%', background: 'var(--border-subtle)', borderRadius: '2px', marginTop: '6px' }}>
-                                        <div style={{ height: '100%', width: `${Math.min(100, (p.revenue / (performanceIndex[0].revenue || 1)) * 100)}%`, background: 'var(--accent-primary)', borderRadius: '2px' }} />
+                                        <div style={{ height: '100%', width: `${Math.min(100, (p.revenue / (performanceIndex[0]?.revenue || 1)) * 100)}%`, background: 'var(--accent-primary)', borderRadius: '2px' }} />
                                     </div>
                                 </div>
                                 <div style={{ textAlign: 'right' }}>
