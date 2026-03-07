@@ -359,7 +359,7 @@ class _OrderCard extends StatelessWidget {
                         decoration: BoxDecoration(color: primary.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
                         child: Text(
                           order['order_code'],
-                          style: TextStyle(color: primary, fontWeight: FontWeight.black, fontSize: 16, letterSpacing: 2),
+                          style: TextStyle(color: primary, fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 2),
                         ),
                       ),
                   ],

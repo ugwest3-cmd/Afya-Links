@@ -142,7 +142,7 @@ class _PharmPayoutsScreenState extends State<PharmPayoutsScreen> {
                           ],
                         ),
                         const SizedBox(height: 32),
-                        Text(_formatCurrency(_availableBalance), style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.black, letterSpacing: -1)),
+                        Text(_formatCurrency(_availableBalance), style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900, letterSpacing: -1)),
                         const SizedBox(height: 32),
                         SizedBox(
                           width: double.infinity,

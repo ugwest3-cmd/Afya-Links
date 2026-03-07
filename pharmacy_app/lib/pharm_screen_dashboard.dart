@@ -167,7 +167,7 @@ class _PharmDashboardScreenState extends State<PharmDashboardScreen> {
                 icon: Icons.history_rounded,
                 label: 'Logs',
                 color: Colors.grey,
-                onTap: () {},
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PharmInvoicesScreen())),
               ),
             ]),
             const SizedBox(height: 28),

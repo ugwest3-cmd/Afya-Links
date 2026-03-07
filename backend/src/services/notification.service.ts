@@ -7,10 +7,11 @@ interface NotificationPayload {
     title: string;
     body: string;
     type?: string;
+    sendSMS?: boolean;
 }
 
 export const sendNotification = async (payload: NotificationPayload) => {
-    const { userId, title, body, type = 'GENERAL' } = payload;
+    const { userId, title, body, type = 'GENERAL', sendSMS: shouldSendSMS = false } = payload;
 
     try {
         // 1. Insert into Database
@@ -26,15 +27,25 @@ export const sendNotification = async (payload: NotificationPayload) => {
             console.error('[NotificationService] Failed to insert DB notification:', dbError);
         }
 
-        // 2. Fetch User's FCM Token
+        // 2. Fetch User's Data (FCM Token & Phone)
         const { data: user, error: userError } = await supabase
             .from('users')
-            .select('fcm_token')
+            .select('fcm_token, phone')
             .eq('id', userId)
             .single();
 
-        if (userError || !user?.fcm_token) {
-            console.log(`[NotificationService] No FCM token found for user ${userId}. DB notification saved.`);
+        if (userError || !user) {
+            console.log(`[NotificationService] No data found for user ${userId}. DB notification saved.`);
+            return;
+        }
+
+        // 3. Send SMS if requested
+        if (shouldSendSMS && user.phone) {
+            await sendSMS([user.phone], `${title}: ${body}`);
+        }
+
+        if (!user.fcm_token) {
+            console.log(`[NotificationService] No FCM token found for user ${userId}. Push skipped.`);
             return;
         }
 

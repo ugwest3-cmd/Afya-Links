@@ -21,6 +21,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   
   String _payoutMethod = 'Mobile Money';
   int _currentStep = 0;
+  bool _isLoading = false;
 
   void _nextStep() {
     if (_currentStep == 0) {

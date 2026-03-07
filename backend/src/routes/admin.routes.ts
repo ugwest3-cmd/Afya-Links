@@ -20,7 +20,7 @@ import {
     updateSystemSettings,
     getAllDriverLocations
 } from '../controllers/admin.controller';
-import { adminGetPayoutRequests, adminGetPayoutAlerts, adminMarkPayoutPaid } from '../controllers/payout.controller';
+import { adminGetPayoutRequests, adminGetPayoutAlerts, adminMarkPayoutPaid, adminGetDriverPayoutRequests, adminMarkDriverPayoutPaid } from '../controllers/payout.controller';
 import { adminConfirmPayment, adminCheckPesapalStatus } from '../controllers/payment.controller';
 
 const router = Router();
@@ -45,8 +45,10 @@ router.post('/escrow/resolve', resolveDispute);
 
 // Payout Management
 router.get('/payouts', adminGetPayoutRequests);
+router.get('/payouts/drivers', adminGetDriverPayoutRequests);
 router.get('/payout-alerts', adminGetPayoutAlerts);
 router.post('/payouts/:id/pay', adminMarkPayoutPaid);
+router.post('/payouts/drivers/:id/pay', adminMarkDriverPayoutPaid);
 
 // Clinic-Driver Route Assignments
 router.get('/driver-routes', getDriverRoutes);

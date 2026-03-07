@@ -37,6 +37,10 @@ class _PharmMainShellState extends State<PharmMainShell> {
   ];
 
   void _onDashboardViewOrders(String? filter) {
+    if (filter == 'WALLET') {
+      setState(() => _currentIndex = 3);
+      return;
+    }
     setState(() {
       _activeFilter = filter;
       _currentIndex = 1;

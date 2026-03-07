@@ -23,6 +23,7 @@ class _PharmProfileScreenState extends State<PharmProfileScreen> {
 
   bool _isLoading = true;
   Map<String, dynamic>? _profileData;
+  Map<String, dynamic> _stats = {'total_orders': 0, 'completed_orders': 0, 'pending_orders': 0, 'total_revenue': 0};
 
   @override
   void initState() {
@@ -597,7 +598,6 @@ class _PharmProfileScreenState extends State<PharmProfileScreen> {
       ),
     );
   }
-}
 
   void _showSignOutDialog(BuildContext context) {
     showDialog(
@@ -681,8 +681,5 @@ class _Divider extends StatelessWidget {
   const _Divider();
   @override
   Widget build(BuildContext context) => Divider(height: 0, thickness: 0.5, indent: 16, endIndent: 16, color: Colors.grey.shade200);
-}
-
-  }
 }
 

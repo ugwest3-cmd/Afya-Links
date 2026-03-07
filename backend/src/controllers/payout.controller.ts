@@ -185,64 +185,99 @@ export const adminGetPayoutAlerts = async (req: AuthRequest, res: Response): Pro
 
 /**
  * Admin: Mark Payout as Paid
- * POST /api/admin/payouts/:id/pay
  */
 export const adminMarkPayoutPaid = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { id } = req.params;
+        const { data: request } = await supabase.from('payout_requests').select('*').eq('id', id).single();
 
-        const { data: request, error: fetchErr } = await supabase
-            .from('payout_requests')
-            .select('*')
-            .eq('id', id)
-            .single();
-
-        if (fetchErr || !request) {
-            res.status(404).json({ success: false, message: 'Payout request not found' });
+        if (!request || request.status === 'PAID') {
+            res.status(400).json({ success: false, message: 'Invalid or already paid request' });
             return;
         }
 
-        if (request.status === 'PAID') {
-            res.status(400).json({ success: false, message: 'Payout is already marked paid' });
-            return;
-        }
+        // 1. Update status & wallet
+        await supabase.from('payout_requests').update({ status: 'PAID', updated_at: new Date().toISOString() }).eq('id', id);
 
-        // Update the payout status
-        const { error: updateErr } = await supabase
-            .from('payout_requests')
-            .update({ status: 'PAID', updated_at: new Date().toISOString() })
-            .eq('id', id);
-
-        if (updateErr) throw updateErr;
-
-        // Update pharmacy wallet stats
-        const { data: wallet } = await supabase
-            .from('pharmacy_wallet')
-            .select('pending_balance, total_paid_out, lifetime_payouts')
-            .eq('pharmacy_id', request.pharmacy_id)
-            .single();
-
+        const { data: wallet } = await supabase.from('pharmacy_wallet').select('*').eq('pharmacy_id', request.pharmacy_id).single();
         if (wallet) {
-            await supabase
-                .from('pharmacy_wallet')
-                .update({
-                    pending_balance: wallet.pending_balance - request.amount, // Deduct the amount from pending
-                    total_paid_out: wallet.total_paid_out + request.amount,
-                    lifetime_payouts: wallet.lifetime_payouts + 1
-                })
-                .eq('pharmacy_id', request.pharmacy_id);
+            await supabase.from('pharmacy_wallet').update({
+                pending_balance: wallet.pending_balance - request.amount,
+                total_paid_out: wallet.total_paid_out + request.amount,
+                lifetime_payouts: wallet.lifetime_payouts + 1
+            }).eq('pharmacy_id', request.pharmacy_id);
         }
 
-        res.status(200).json({ success: true, message: 'Payout marked as paid successfully' });
+        // 2. Create Invoice Record
+        await supabase.from('invoices').insert({
+            pharmacy_id: request.pharmacy_id,
+            total_amount: request.amount,
+            status: 'PAID',
+            type: 'PAYOUT'
+        });
 
-        // Notify Pharmacy
+        res.status(200).json({ success: true, message: 'Payout processed' });
+
         sendNotification({
             userId: request.pharmacy_id,
             title: '💸 Payout Processed',
-            body: `Your payout of UGX ${request.amount} has been processed. Please check your account.`,
-            type: 'PAYOUT_PAID'
+            body: `Your payout of UGX ${request.amount} has been processed.`,
+            type: 'PAYOUT_PAID',
+            sendSMS: true
         });
-    } catch (error: any) {
-        res.status(500).json({ success: false, message: error.message });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+};
+
+/**
+ * Admin: Get Driver Payout Requests
+ */
+export const adminGetDriverPayoutRequests = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { data: payouts } = await supabase
+            .from('driver_payouts')
+            .select('*, driver:users!driver_payouts_driver_id_fkey(name, phone)')
+            .order('created_at', { ascending: false });
+        res.status(200).json({ success: true, payouts });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+};
+
+/**
+ * Admin: Mark Driver Payout as Paid
+ */
+export const adminMarkDriverPayoutPaid = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const { data: request } = await supabase.from('driver_payouts').select('*').eq('id', id).single();
+
+        if (!request || request.status === 'PAID') {
+            res.status(400).json({ success: false, message: 'Invalid request' });
+            return;
+        }
+
+        await supabase.from('driver_payouts').update({ status: 'PAID' }).eq('id', id);
+
+        // Create Invoice
+        await supabase.from('invoices').insert({
+            driver_id: request.driver_id,
+            total_amount: request.amount,
+            status: 'PAID',
+            type: 'PAYOUT'
+        });
+
+        res.status(200).json({ success: true, message: 'Driver payout processed' });
+
+        sendNotification({
+            userId: request.driver_id,
+            title: '💸 Payout Processed',
+            body: `Your delivery payout of UGX ${request.amount} is ready.`,
+            type: 'PAYOUT_PAID',
+            sendSMS: true
+        });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
     }
 };

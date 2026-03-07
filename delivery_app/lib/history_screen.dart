@@ -149,7 +149,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       const Text('EARNED', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
-                      Text('UGX $fee', style: const TextStyle(color: Color(0xFF059669), fontSize: 15, fontWeight: FontWeight.black)),
+                      Text('UGX $fee', style: const TextStyle(color: Color(0xFF059669), fontSize: 15, fontWeight: FontWeight.w900)),
                     ],
                   )
                 ],
