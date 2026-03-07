@@ -46,7 +46,6 @@ export const Escrow = () => {
     const [ledger, setLedger] = useState<LedgerItem[]>([]);
     const [metrics, setMetrics] = useState<Metrics | null>(null);
     const [loading, setLoading] = useState(true);
-    const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [activeFilter, setActiveFilter] = useState('All');
     const [search, setSearch] = useState('');
 
@@ -159,7 +158,7 @@ export const Escrow = () => {
                         <ResponsiveContainer width="50%" height="100%">
                             <PieChart>
                                 <Pie data={partnerSplit} innerRadius={50} outerRadius={70} paddingAngle={5} dataKey="value">
-                                    {partnerSplit.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                                    {partnerSplit.map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                                 </Pie>
                                 <Tooltip />
                             </PieChart>

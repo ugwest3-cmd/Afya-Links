@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
     Package, RefreshCw, Search, ChevronRight,
-    Clock, CheckCircle, Truck, Info, Calendar,
+    Clock, CheckCircle, Truck, Calendar,
     MapPin, Store, Building2, ExternalLink
 } from 'lucide-react';
 import api from '../utils/api';

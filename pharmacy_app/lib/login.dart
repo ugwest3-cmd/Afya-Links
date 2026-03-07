@@ -175,7 +175,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           if (!_otpSent) ...[
                             if (_isSignUp) ...[
-                              // Registration Stepper UI
+                              if (_currentRegStep == 0) ...[
+                                _buildInputField(_nameCtrl, 'Pharmacy Business Name', Icons.storefront_rounded),
+                                const SizedBox(height: 16),
+                                _buildInputField(_phoneCtrl, 'Business Phone Number', Icons.phone_android_rounded, type: TextInputType.phone),
+                              ] else if (_currentRegStep == 1) ...[
+                                _buildInputField(_licenseCtrl, 'Pharmacy License Number', Icons.badge_rounded),
+                                const SizedBox(height: 12),
+                                Text('We will verify this with the National Drug Authority', style: TextStyle(color: Colors.blueGrey.shade300, fontSize: 11)),
+                              ] else ...[
+                                _buildInputField(_locationCtrl, 'District / Physical Address', Icons.location_on_rounded),
+                              ],
                             ] else ...[
                               _buildInputField(_phoneCtrl, 'Phone (e.g., 0722...)', Icons.phone_android_rounded, type: TextInputType.phone),
                             ],

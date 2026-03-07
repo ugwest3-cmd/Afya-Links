@@ -183,6 +183,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 32),
 
+                    if (!_otpSent) ...[
+                      if (_isSignUp) ...[
+                        if (_currentRegStep == 0) ...[
+                          _InputField(controller: _nameCtrl, hint: 'Clinic Name', icon: Icons.business_rounded, type: TextInputType.name),
+                          const SizedBox(height: 16),
+                          _InputField(controller: _phoneCtrl, hint: 'Phone Number', icon: Icons.phone_android_rounded, type: TextInputType.phone),
+                        ] else if (_currentRegStep == 1) ...[
+                          _InputField(controller: _hwidCtrl, hint: 'License / HWID', icon: Icons.badge_rounded, type: TextInputType.text),
+                        ] else ...[
+                          _InputField(controller: _locationCtrl, hint: 'Clinic Location / District', icon: Icons.location_on_rounded, type: TextInputType.text),
+                        ],
                       ] else ...[
                         _InputField(controller: _phoneCtrl, hint: 'Phone (e.g., 0722...)', icon: Icons.phone_android_rounded, type: TextInputType.phone),
                       ],

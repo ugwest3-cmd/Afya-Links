@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import api from '../utils/api';
 import {
-    CheckCircle, Clock, ShieldCheck, UserCheck,
-    FileText, Phone, ExternalLink, ShieldAlert
+    Clock, ShieldCheck, UserCheck,
+    FileText, Phone, ShieldAlert
 } from 'lucide-react';
 
 interface User {
