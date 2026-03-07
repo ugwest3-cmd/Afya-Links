@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DollarSign, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import api from '../utils/api';
 
 interface PayoutRequest {
